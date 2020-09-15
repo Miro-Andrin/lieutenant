@@ -37,13 +37,6 @@ where
     }
 }
 
-pub trait Lazy {
-    type State;
-    type Output: Tuple;
-    
-    fn get(self, state: &Self::State) -> Self::Output;
-}
-
 pub trait HList: Sized {
     type Tuple: Tuple<HList = Self>;
 
@@ -82,7 +75,6 @@ impl<T: HList> Combine<T> for () {
         other
     }
 }
-
 
 impl<H, T: HList, U: HList> Combine<U> for Product<H, T>
 where
@@ -140,7 +132,7 @@ macro_rules! product_pat {
 
 macro_rules! generics {
     ($type:ident) => {
-        
+
 
         impl<$type> HList for Product!($type) {
             type Tuple = ($type,);

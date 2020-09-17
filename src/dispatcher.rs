@@ -41,53 +41,12 @@ pub struct CommandDispatcher<Ctx> {
     graph: RootNode<Ctx>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum InputConsumer {
-    /// Consume until we reach a space or the end of input.
-    SingleWord,
-    /// If the input begins with a quote (single or double),
-    /// then parse a string until the end quote. Otherwise,
-    /// consume input as if this were `SingleWord`.
-    Quoted,
-    /// Consume all remaining input.
-    Greedy,
-}
-
 /// The function used to execute a command.
 pub type CommandFn<Ctx> = fn(ctx: &mut Ctx, input: &mut Values) -> Result<()>;
 
 impl<Ctx> Default for CommandDispatcher<Ctx> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl InputConsumer {
-    /// Consumes the provided string according to the rules
-    /// defined by this `InputConsumer`. After this call returns `Ok`,
-    /// `input` will point to the remaining input and the returned
-    /// string is the consumed input.
-    pub fn consume<'a>(self, input: &mut &'a str) -> Result<&'a str> {
-        match self {
-            InputConsumer::SingleWord => {
-                let space = find_space_position(input);
-                let consumed = &input[..space];
-                *input = &input[space..].trim_start();
-                Ok(consumed)
-            }
-            InputConsumer::Quoted => {
-                let mut chars = input.char_indices();
-                while let Some((i, c)) = chars.next() {
-                    todo!()
-                }
-                todo!()
-            }
-            InputConsumer::Greedy => {
-                let consumed = *input;
-                *input = &input[input.len()..];
-                Ok(consumed)
-            }
-        }
     }
 }
 
@@ -113,46 +72,47 @@ impl<Ctx> CommandDispatcher<Ctx> {
     /// Parses and executes a command.
     // TODO
     pub fn execute(&self, full_command: &str, ctx: &mut Ctx) -> Result<()> {
-        let command = full_command;
+    //     let command = full_command;
 
-        let mut node_stack = vec![(command, self.graph.children.clone())];
-        let mut values = vec![];
+    //     let mut node_stack = vec![(command, self.graph.children.clone())];
+    //     let mut values = vec![];
 
-        // Depth-first search to determine which node to execute.
-        while let Some((mut command, mut node_ids)) = node_stack.pop() {
-            while let Some(node_id) = node_ids.pop() {
-                let mut command = command.clone();
-                let node = &self.graph[node_id];
-                let node_input = node.consumer.consume(&mut command)?;
+    //     // Depth-first search to determine which node to execute.
+    //     while let Some((mut command, mut node_ids)) = node_stack.pop() {
+    //         while let Some(node_id) = node_ids.pop() {
+    //             let mut command = command.clone();
+    //             let node = &self.graph[node_id];
+    //             let node_input = node.consumer.consume(&mut command)?;
 
-                match &node.kind {
-                    NodeKind::Literal(lit) => {
-                        if node_input != lit {
-                            continue;
-                        }
-                    }
-                    NodeKind::Argument { parser } => match parser.parse(node_input) {
-                        Ok(value) => values.push(value),
-                        Err(_) => todo!(),
-                    },
-                }
+    //             match &node.kind {
+    //                 NodeKind::Literal(lit) => {
+    //                     if node_input != lit {
+    //                         continue;
+    //                     }
+    //                 }
+    //                 NodeKind::Argument { parser } => match parser.parse(node_input) {
+    //                     Ok(value) => values.push(value),
+    //                     Err(_) => todo!(),
+    //                 },
+    //             }
 
-                // If there's no remaining input, then we execute this node.
-                if command.is_empty() {
-                    match &node.execute {
-                        Some(execute) => {
-                            return execute.invoke(ctx, &mut (&values).into()).unwrap()
-                        }
-                        None => return Err(Error::Syntax(SyntaxError::MissingArgument)),
-                    }
-                }
+    //             // If there's no remaining input, then we execute this node.
+    //             if command.is_empty() {
+    //                 match &node.execute {
+    //                     Some(execute) => {
+    //                         return execute.invoke(ctx, &mut (&values).into()).unwrap()
+    //                     }
+    //                     None => return Err(Error::Syntax(SyntaxError::MissingArgument)),
+    //                 }
+    //             }
 
-                // Push the node's children to the stack.
-                node_stack.push((command, node.children.clone()));
-            }
-        }
+    //             // Push the node's children to the stack.
+    //             node_stack.push((command, node.children.clone()));
+    //         }
+    //     }
 
-        Err(Error::Syntax(SyntaxError::MissingArgument))
+    //     Err(Error::Syntax(SyntaxError::MissingArgument))
+        todo!()    
     }
 }
 
@@ -172,43 +132,43 @@ impl<Ctx> GraphMerge<RootNode<Ctx>> for CommandDispatcher<Ctx> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn consume_single_word() {
-        let mut s = &mut "input after space";
-        assert_eq!(InputConsumer::SingleWord.consume(&mut s).unwrap(), "input");
-        assert_eq!(*s, " after space");
-    }
+    // #[test]
+    // fn consume_single_word() {
+    //     let mut s = &mut "input after space";
+    //     assert_eq!(InputConsumer::SingleWord.consume(&mut s).unwrap(), "input");
+    //     assert_eq!(*s, " after space");
+    // }
 
-    #[test]
-    fn consume_single_word_without_trailing_space() {
-        let mut s = &mut "input";
-        assert_eq!(InputConsumer::SingleWord.consume(&mut s).unwrap(), "input");
-        assert!(s.is_empty());
-    }
+    // #[test]
+    // fn consume_single_word_without_trailing_space() {
+    //     let mut s = &mut "input";
+    //     assert_eq!(InputConsumer::SingleWord.consume(&mut s).unwrap(), "input");
+    //     assert!(s.is_empty());
+    // }
 
-    #[test]
-    fn consume_quoted() {
-        let mut s = &mut "\"in quotes\" not in quotes";
-        assert_eq!(InputConsumer::Quoted.consume(&mut s).unwrap(), "in quotes");
-        assert_eq!(*s, " not in quotes");
-    }
+    // #[test]
+    // fn consume_quoted() {
+    //     let mut s = &mut "\"in quotes\" not in quotes";
+    //     assert_eq!(InputConsumer::Quoted.consume(&mut s).unwrap(), "in quotes");
+    //     assert_eq!(*s, " not in quotes");
+    // }
 
-    #[test]
-    fn consume_quoted_without_quotes() {
-        let mut s = &mut "not in quotes";
-        assert_eq!(InputConsumer::Quoted.consume(&mut s).unwrap(), "not");
-        assert_eq!(*s, " in quotes");
-    }
+    // #[test]
+    // fn consume_quoted_without_quotes() {
+    //     let mut s = &mut "not in quotes";
+    //     assert_eq!(InputConsumer::Quoted.consume(&mut s).unwrap(), "not");
+    //     assert_eq!(*s, " in quotes");
+    // }
 
-    #[test]
-    fn undelimited_quote() {
-        let mut s = &mut "\"not delimited";
-        let err = InputConsumer::Quoted.consume(&mut s).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::Syntax(SyntaxError::UnterminatedString)
-        ));
-    }
+    // #[test]
+    // fn undelimited_quote() {
+    //     let mut s = &mut "\"not delimited";
+    //     let err = InputConsumer::Quoted.consume(&mut s).unwrap_err();
+    //     assert!(matches!(
+    //         err,
+    //         Error::Syntax(SyntaxError::UnterminatedString)
+    //     ));
+    // }
 
     #[test]
     fn command_test() {

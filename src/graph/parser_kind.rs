@@ -3,6 +3,13 @@ use std::ops::RangeInclusive;
 use crate::error::Result;
 use crate::values::Value;
 
+#[derive(Debug, PartialEq)]
+pub enum StringProperty {
+    SingleWord,
+    QuotablePhrase,
+    GreedyPhrase,
+}
+
 /// Describes a parser from [this list](https://wiki.vg/Command_Data#Parsers).
 /// Doesn't actually provide a means to parse functions—this is only
 /// used to build the Declare Commands packet.
@@ -12,7 +19,7 @@ pub enum ParserKind {
     Double(RangeInclusive<f64>),
     Float(RangeInclusive<f32>),
     Integer(RangeInclusive<i32>),
-    String,
+    String(StringProperty),
     Entity {
         /// Whether only one entity is allowed.
         only_one: bool,

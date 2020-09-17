@@ -1,5 +1,4 @@
-use super::{command, IntoNode};
-use crate::dispatcher::InputConsumer;
+use super::{command, NodeDescriptor};
 use crate::generic::{Combine, Func, HList, Tuple};
 use crate::graph::{RootNode, Node, NodeKind};
 use crate::values::FromValues;
@@ -16,9 +15,9 @@ where
 {
     type Args = B::Args;
 
-    fn nodes(self) -> Vec<(InputConsumer, NodeKind)> {
+    fn nodes(self) -> Vec<NodeKind> {
         let mut nodes = self.builder.nodes();
-        nodes.push((InputConsumer::SingleWord, NodeKind::Literal(self.value)));
+        nodes.push(NodeKind::Literal(self.value));
         nodes
     }
 }
@@ -35,14 +34,14 @@ type Combined<T, U> = <<<<T as CommandBuilder>::Args as Tuple>::HList as Combine
 impl<B, P> CommandBuilder for Parameter<B, (P,)>
 where
     B: CommandBuilder,
-    P: IntoNode,
+    P: NodeDescriptor,
     <B::Args as Tuple>::HList: Combine<<(P,) as Tuple>::HList>,
 {
     type Args = Combined<B, (P,)>;
 
-    fn nodes(self) -> Vec<(InputConsumer, NodeKind)> {
+    fn nodes(self) -> Vec<NodeKind> {
         let mut nodes = self.builder.nodes();
-        nodes.push((P::Consumer, P::NodeKind));
+        nodes.push(P::NodeKind);
         nodes
     }
 }
@@ -52,7 +51,7 @@ pub struct BlankBuilder;
 impl CommandBuilder for BlankBuilder {
     type Args = ();
 
-    fn nodes(self) -> Vec<(InputConsumer, NodeKind)> {
+    fn nodes(self) -> Vec<NodeKind> {
         vec![]
     }
 }
@@ -66,7 +65,7 @@ impl BlankBuilder {
 pub trait CommandBuilder {
     type Args: Tuple;
 
-    fn nodes(self) -> Vec<(InputConsumer, NodeKind)>;
+    fn nodes(self) -> Vec<NodeKind>;
 
     fn build<Ctx, F>(self, callback: F) -> RootNode<Ctx>
     where
@@ -79,7 +78,7 @@ pub trait CommandBuilder {
         let mut nodes = self
             .nodes()
             .into_iter()
-            .map(|(consumer, kind)| Node::new(consumer, kind))
+            .map(|kind| Node::new(kind))
             .collect::<Vec<_>>();
         
         let command = command(callback);

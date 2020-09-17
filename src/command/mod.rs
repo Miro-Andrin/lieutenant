@@ -3,8 +3,9 @@ mod builder;
 use crate::generic::{Combine, Func, HList, Tuple};
 use crate::values::{FromValues, Values};
 use std::marker::PhantomData;
-use crate::dispatcher::{InputConsumer};
 use crate::graph::{NodeKind, ParserKind};
+
+pub use self::builder::{CommandBuilder, BlankBuilder};
 
 pub trait Command {
     type Ctx;
@@ -45,13 +46,11 @@ where
     }
 }
 
-pub trait IntoNode {
-    const Consumer: InputConsumer;
+pub trait NodeDescriptor {
     const NodeKind: NodeKind;
 }
 
-impl IntoNode for i32 {
-    const Consumer: InputConsumer = InputConsumer::SingleWord;
+impl NodeDescriptor for i32 {
     const NodeKind: NodeKind = NodeKind::Argument { parser: ParserKind::IntRange };
 }
 
@@ -67,7 +66,7 @@ mod tests {
         let a = BlankBuilder::new()
             .literal("a")
             .param()
-            .build(teleport);
+            .build(|_x: i32| { println!("hello world!"); Ok(()) });
 
         let b = BlankBuilder::new()
             .literal("b")

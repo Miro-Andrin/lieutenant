@@ -57,6 +57,12 @@ impl<Ctx> FromValue<Ctx> for i32 {
     }
 }
 
+impl<Ctx> FromValues<Ctx> for () {
+    fn from_values(_ctx: &mut Ctx, _values: &mut Values) -> Option<Self> {
+        Some(())
+    }
+}
+
 impl<Ctx, T1> FromValues<Ctx> for (T1,)
 where
     T1: FromValue<Ctx>,

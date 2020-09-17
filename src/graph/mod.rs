@@ -1,13 +1,12 @@
 mod parser_kind;
 
 use crate::command::Command;
-use crate::dispatcher::InputConsumer;
 use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
 use std::ops::{Index, IndexMut};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
 
 impl<Ctx> Index<NodeId> for Slab<Node<Ctx>> {
@@ -25,9 +24,6 @@ impl<Ctx> IndexMut<NodeId> for Slab<Node<Ctx>> {
 }
 
 pub struct Node<Ctx> {
-    /// How to consume input.
-    pub consumer: InputConsumer,
-
     /// Whether this node is a `literal` or `argument` node.
     pub kind: NodeKind,
 
@@ -45,9 +41,8 @@ pub struct Node<Ctx> {
 }
 
 impl<Ctx> Node<Ctx> {
-    pub fn new(consumer: InputConsumer, kind: NodeKind) -> Self {
+    pub fn new(kind: NodeKind) -> Self {
         Self {
-            consumer,
             kind,
             execute: None,
             children: vec![]
@@ -101,9 +96,9 @@ impl<Ctx> RootNode<Ctx> {
     pub fn add_node(&mut self, parent: Option<NodeId>, node: Node<Ctx>) -> NodeId {
         let id = NodeId(self.nodes.insert(node));
         if let Some(parent) = parent.and_then(|id| self.nodes.get_mut(id.0)) {
-            parent.children.push(id);
+            parent.children.push(id.clone());
         } else {
-            self.children.push(id);
+            self.children.push(id.clone());
         }
         id
     }
@@ -119,6 +114,10 @@ impl<Ctx> RootNode<Ctx> {
         }
         id
     }
+
+    pub fn remove(&mut self, node_id: NodeId) -> Node<Ctx> {
+        self.nodes.remove(node_id.0)
+    }
 }
 
 pub trait GraphMerge<Other = Self> {
@@ -133,7 +132,7 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
                 let mut other_child = other.nodes.remove(other_child_id.0);
                 let other_child_children = std::mem::replace(&mut other_child.children, vec![]);
                 other.children = vec![];
-                let parent = self.add_node(parent, other_child);
+                let parent = self.add_node(parent.clone(), other_child);
                 other_children.push((Some(parent), other_child_children));
             }
         }

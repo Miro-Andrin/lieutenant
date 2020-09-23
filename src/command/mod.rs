@@ -57,16 +57,14 @@ impl NodeDescriptor for i32 {
 #[cfg(test)]
 mod tests {
     use super::builder::*;
-    use crate::dispatcher::CommandDispatcher;
     use crate::graph::GraphMerge;
 
     #[test]
     fn test() {
-        let mut dispatcher = CommandDispatcher::new();
-        let a = BlankBuilder::new()
+        let mut a = BlankBuilder::new()
             .literal("a")
             .param()
-            .build(|_x: i32| { println!("hello world!"); Ok(()) });
+            .build::<(), _>(|_x: i32| { println!("hello world!"); Ok(()) });
 
         let b = BlankBuilder::new()
             .literal("b")
@@ -78,18 +76,8 @@ mod tests {
             .param()
             .build(teleport);
         
-        dispatcher.merge(a);
-        dispatcher.merge(b);
-        dispatcher.merge(c);
-
-        let result = dispatcher.execute(&mut "a 1", &mut ());
-        dbg!(&result);
-
-        let result = dispatcher.execute(&mut "b 2", &mut ());
-        dbg!(&result);
-
-        let result = dispatcher.execute(&mut "c 3", &mut ());
-        dbg!(&result);
+        a.merge(b);
+        a.merge(c);
     }
 
     fn teleport(x: i32) -> crate::error::Result<()>{

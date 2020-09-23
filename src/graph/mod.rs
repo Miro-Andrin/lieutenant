@@ -5,6 +5,7 @@ use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
 use std::ops::{Index, IndexMut};
+use crate::automaton::{Pattern, pattern};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
@@ -135,6 +136,15 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
                 let parent = self.add_node(parent.clone(), other_child);
                 other_children.push((Some(parent), other_child_children));
             }
+        }
+    }
+}
+
+impl<'a> From<&'a NodeKind> for Pattern<'a> {
+    fn from(kind: &'a NodeKind) -> Self {
+        match kind {
+            NodeKind::Literal(lit) => Pattern::literal(&lit),
+            NodeKind::Argument { parser } => Self::from(parser),
         }
     }
 }

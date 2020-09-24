@@ -5,7 +5,7 @@ use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
 use std::ops::{Index, IndexMut};
-use crate::automaton::{Pattern, pattern};
+use crate::automaton::{Pattern};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);

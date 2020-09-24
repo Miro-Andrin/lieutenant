@@ -1,9 +1,9 @@
 mod builder;
 
-use crate::generic::{Combine, Func, HList, Tuple};
+use crate::generic::{Func, Tuple};
 use crate::values::{FromValues, Values};
 use std::marker::PhantomData;
-use crate::graph::{NodeKind, ParserKind};
+use crate::graph::{NodeKind, ParserKind, StringProperty};
 
 pub use self::builder::{CommandBuilder, BlankBuilder};
 
@@ -47,12 +47,23 @@ where
 }
 
 pub trait NodeDescriptor {
-    const NodeKind: NodeKind;
+    const NODE_KIND: NodeKind;
 }
 
-impl NodeDescriptor for i32 {
-    const NodeKind: NodeKind = NodeKind::Argument { parser: ParserKind::IntRange };
+macro_rules! node_parser {
+    ($ident:ident; $parser:expr) => {
+        impl NodeDescriptor for $ident {
+            const NODE_KIND: NodeKind = NodeKind::Argument { parser: $parser };
+        }
+    };
 }
+
+node_parser!(bool; ParserKind::Bool);
+node_parser!(f64; ParserKind::Double(f64::MIN..=f64::MAX));
+node_parser!(f32; ParserKind::Float(f32::MIN..=f32::MAX));
+node_parser!(i32; ParserKind::Integer(i32::MIN..=i32::MAX));
+node_parser!(String; ParserKind::String(StringProperty::SingleWord));
+
 
 #[cfg(test)]
 mod tests {

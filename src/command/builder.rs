@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 pub struct Literal<B> {
     builder: B,
     value: String,
+    aliases: Vec<String>
 }
 
 impl<B> CommandBuilder for Literal<B>
@@ -19,6 +20,17 @@ where
         let mut nodes = self.builder.nodes();
         nodes.push(NodeKind::Literal(self.value));
         nodes
+    }
+}
+
+impl<B> Literal<B>
+where
+    B: CommandBuilder
+{
+    /// Adds an additional alias for this literal
+    pub fn alias(mut self, alias: String) -> Self {
+        self.aliases.push(alias);
+        self
     }
 }
 
@@ -41,7 +53,7 @@ where
 
     fn nodes(self) -> Vec<NodeKind> {
         let mut nodes = self.builder.nodes();
-        nodes.push(P::NodeKind);
+        nodes.push(P::NODE_KIND);
         nodes
     }
 }
@@ -94,6 +106,8 @@ pub trait CommandBuilder {
         root
     }
 
+
+    /// Adds an case insensitive literal ie. `tp` or `ban`.
     fn literal(self, lit: &str) -> Literal<Self>
     where
         Self: Sized,
@@ -101,9 +115,11 @@ pub trait CommandBuilder {
         Literal {
             builder: self,
             value: lit.to_owned(),
+            aliases: vec![],
         }
     }
 
+    /// Adds an paramter of type `T`
     fn param<T>(self) -> Parameter<Self, (T,)>
     where
         Self: Sized,

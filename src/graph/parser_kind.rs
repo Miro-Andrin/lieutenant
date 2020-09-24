@@ -2,7 +2,8 @@
 use std::ops::RangeInclusive;
 use crate::error::Result;
 use crate::values::Value;
-use crate::automaton::{Pattern, pattern};
+use crate::automaton::{Pattern};
+use crate::pattern;
 
 #[derive(Debug, PartialEq)]
 pub enum StringProperty {
@@ -86,8 +87,14 @@ impl ParserKind {
 
 impl<'a> From<&'a ParserKind> for Pattern<'a> {
     fn from(parser: &'a ParserKind) -> Self {
+        let optional = Pattern::optional;
+        let concat = Pattern::concat;
+
         match parser {
+            ParserKind::Bool => Pattern::Alt(&[pattern!("true"), pattern!("false")]),
             ParserKind::String(StringProperty::SingleWord) => Pattern::WORD,
+            ParserKind::Integer(_) => pattern!(["0123456789"]["0123456789"]*),
+            // ParserKind::Double(_) => concat(&[optional(&pattern!("-"))]),
             // ParserKind::String(StringProperty::GreedyPhrase) => Pattern::concat(&[Pattern::WORD, Pattern::SPACE]).repeat(),
             _ => todo!()
         }

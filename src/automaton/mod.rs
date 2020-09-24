@@ -1,4 +1,4 @@
-pub use pattern::Pattern;
+pub use pattern::{Pattern};
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
@@ -7,7 +7,7 @@ use std::ops::Range;
 use std::ops::{Index, IndexMut};
 
 #[macro_use]
-pub mod pattern;
+mod pattern;
 pub mod converter;
 pub mod dfa;
 pub mod nfa;
@@ -140,7 +140,5 @@ mod tests {
         let nfa = NFA::from(&pattern!("abc"*));
         let dfa = DFA::from(nfa);
         let minimized_dfa = dfa.minimize();
-
-        println!("{:?}", minimized_dfa);
     }
 }

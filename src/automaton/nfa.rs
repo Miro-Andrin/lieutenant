@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::command::NodeDescriptor;
+use crate::graph::{NodeKind, ParserKind, RootNode};
 use indexmap::IndexSet;
 use std::collections::BTreeSet;
 
@@ -180,6 +182,14 @@ impl NFA {
         self
     }
 
+    pub(crate) fn optional(mut self) -> Self {
+        let start = self.start;
+        let end = self.end;
+        let start = &mut self[start];
+        start.push_epsilon(end);
+        self
+    }
+
     pub fn find(&self, input: &str) -> bool {
         let mut stack = vec![(self.start, input.as_bytes())];
         while let Some((id, input)) = stack.pop() {
@@ -260,14 +270,19 @@ impl<'a> From<&Pattern<'a>> for NFA {
             Pattern::Many(pattern) => NFA::from(*pattern).repeat(),
             Pattern::Concat(patterns) => patterns
                 .iter()
-                .fold(NFA::from(&pattern!("")), |nfa, pattern| {
+                .fold(NFA::empty(), |nfa, pattern| {
                     nfa.concat(&NFA::from(pattern))
                 }),
-            Pattern::Alt(patterns) => patterns
-                .iter()
-                .fold(NFA::from(&pattern!("")), |nfa, pattern| {
-                    nfa.union(&NFA::from(pattern))
-                }),
+            Pattern::Alt(patterns) => {
+                let mut patterns = patterns.iter();
+                if let Some(first) = patterns.next() {
+                    patterns.fold(NFA::from(first), |nfa, pattern| {
+                        nfa.union(&NFA::from(pattern))
+                    })
+                } else {
+                    NFA::empty()
+                }
+            }
             Pattern::OneOf(one_of) => {
                 let mut buffer = [0; 4];
                 let mut classes = vec![ByteClass::empty(); 4];
@@ -305,7 +320,30 @@ impl<'a> From<&Pattern<'a>> for NFA {
 
                 nfa
             }
+            Pattern::Optional(pattern) => {
+                let nfa = NFA::from(*pattern);
+                nfa.optional()
+            }
         }
+    }
+}
+
+impl<Ctx> From<RootNode<Ctx>> for NFA {
+    fn from(root: RootNode<Ctx>) -> Self {
+        let mut stack = root.children.clone();
+        let mut nfa = NFA::empty();
+        while let Some(node_id) = stack.pop() {
+            let node = &root[node_id];
+            let pattern = match &node.kind {
+                NodeKind::Literal(lit) => Pattern::literal(&lit),
+                NodeKind::Argument { parser, .. } => Pattern::from(parser),
+            };
+
+            nfa = nfa.concat(&NFA::from(&pattern));
+
+            stack.extend(node.children.clone());
+        }
+        nfa
     }
 }
 
@@ -316,8 +354,6 @@ mod tests {
     #[test]
     fn abc() {
         let nfa_abc = NFA::from(&pattern!("abc"));
-
-        println!("{:?}", nfa_abc);
 
         assert!(!nfa_abc.find(""));
         assert!(nfa_abc.find("abc"));
@@ -389,6 +425,8 @@ mod tests {
     fn unicode() {
         let nfa = NFA::from(&pattern!(["æøå🌏"]));
 
+        assert!(!nfa.find(" "));
+        assert!(!nfa.find(""));
         assert!(nfa.find("æ"));
         assert!(nfa.find("ø"));
         assert!(nfa.find("å"));
@@ -408,5 +446,44 @@ mod tests {
         assert!(!nfa.find("ab"));
         assert!(!nfa.find("bc"));
         assert!(!nfa.find("cd"));
+    }
+
+    #[test]
+    fn alt() {
+        let nfa = NFA::from(&Pattern::alt(&[pattern!("abc"), pattern!("def")]));
+
+        assert!(nfa.find("abc"));
+        assert!(nfa.find("def"));
+    }
+
+    #[test]
+    fn tp() {
+        let empty = NFA::empty();
+        let tp = pattern!("tp");
+        let tp_alt = NFA::from(&Pattern::alt(&[tp]));
+        let empty_tp_alt = empty.concat(&tp_alt);
+
+        println!("{:?}", empty_tp_alt);
+    }
+
+    #[test]
+    fn number() {
+        let digit = NFA::from(&Pattern::one_of("0123456789"));
+        let digit_many = digit.clone().repeat();
+        let digit_many_one = digit.concat(&digit_many);
+        
+        let nfa = digit_many_one;
+
+        assert!(nfa.find("0"));
+        assert!(nfa.find("1"));
+        assert!(nfa.find("9"));
+        assert!(nfa.find("99"));
+        assert!(nfa.find("129385123901238189"));
+        assert!(!nfa.find("abasdasd"));
+        assert!(!nfa.find(""));
+        assert!(!nfa.find(" "));
+        assert!(!nfa.find("ab123abasd"));
+        assert!(!nfa.find("123123a"));
+        assert!(!nfa.find("a123123"));
     }
 }

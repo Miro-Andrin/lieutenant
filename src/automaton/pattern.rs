@@ -38,12 +38,14 @@ pub enum Pattern<'a> {
     Concat(&'a [Self]),
     Many(&'a Self),
     Alt(&'a [Self]),
+    Optional(&'a Self),
 }
 
 impl<'a> Pattern<'a> {
     pub const WORD: Pattern<'static> = pattern!([""]*);
     pub const DIGIT: Pattern<'static> = pattern!(["0123456789"]);
     pub const SPACE: Pattern<'static> = pattern!(" ");
+    pub const SPACE_MANY_ONE: Pattern<'static> = Pattern::concat(&[pattern!(" "), pattern!(" "*)]);
 
     pub fn literal(literal: &'a str) -> Self {
         Self::Literal(Cow::from(literal))
@@ -58,15 +60,15 @@ impl<'a> Pattern<'a> {
     }
 
     pub const fn many(pattern: &'a Self) -> Self {
-        Pattern::Many(pattern)
+        Self::Many(pattern)
     }
 
     pub const fn alt(patterns: &'a [Self]) -> Self {
         Self::Alt(patterns)
     }
 
-    pub const fn repeat(&'a self) -> Self {
-        Self::many(self)
+    pub const fn optional(pattern: &'a Self) -> Self {
+        Self::Optional(pattern)
     }
 }
 
@@ -88,7 +90,8 @@ impl<'a> fmt::Display for Pattern<'a> {
                     write!(f, "{}|", pattern)?;
                 }
                 write!(f, ")")?;
-            }
+            },
+            Optional(pattern) => write!(f, "({})?", pattern)?,
         }
         Ok(())
     }

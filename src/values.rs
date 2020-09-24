@@ -63,11 +63,19 @@ impl<Ctx> FromValues<Ctx> for () {
     }
 }
 
-impl<Ctx, T1> FromValues<Ctx> for (T1,)
-where
-    T1: FromValue<Ctx>,
-{
-    fn from_values(ctx: &mut Ctx, values: &mut Values) -> Option<Self> {
-        Some((T1::from_value(ctx, values.next()?)?,))
-    }
+macro_rules! from_values {
+    ($($g:ident),*) => {
+        impl<Ctx, $($g),*> FromValues<Ctx> for ($($g),*,)
+        where
+            $($g: FromValue<Ctx>),*
+        {
+            fn from_values(ctx: &mut Ctx, values: &mut Values) -> Option<Self> {
+                Some(($($g::from_value(ctx, values.next()?)?),*,))
+            }
+        }
+    };
 }
+
+from_values!(T1);
+from_values!(T1,T2);
+from_values!(T1,T2,T3);

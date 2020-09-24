@@ -9,6 +9,7 @@ thiserror = "1.0"
 anyhow = "1.0"
 unicase = "2.6"
 slab = "0.4"
+indexmap = "1.6"
 
 [dev-dependencies]
 criterion = "0.3"

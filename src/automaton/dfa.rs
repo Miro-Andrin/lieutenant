@@ -1,16 +1,11 @@
 use super::*;
-use std::collections::{BTreeMap, BTreeSet};
-
-#[derive(Debug)]
-pub struct DFA {
-    /// All posible states and their transition table
-    pub(crate) states: Vec<State>,
-    pub(crate) ends: BTreeSet<StateId>,
-}
+use std::collections::{BTreeMap};
+use indexmap::IndexSet;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct State {
-    pub(crate) table: BTreeMap<char, StateId>,
+    pub(crate) table: Vec<Option<StateId>>,
+    pub(crate) class: ByteClassId,
 }
 
 impl Default for State {
@@ -22,37 +17,77 @@ impl Default for State {
 impl State {
     fn empty() -> Self {
         Self {
-            table: BTreeMap::new(),
-        }
-    }
-
-
-    fn get(&self, c: char) -> Option<StateId> {
-        self.table.get(&c).copied()
-    }
-}
-
-impl iter::FromIterator<(char, StateId)> for State {
-    fn from_iter<I: IntoIterator<Item = (char, StateId)>>(iter: I) -> Self {
-        Self {
-            table: iter.into_iter().collect(),
+            table: vec![None],
+            class: ByteClassId(0),
         }
     }
 }
+
+impl Index<u8> for State {
+    type Output = Option<StateId>;
+    fn index(&self, index: u8) -> &Self::Output {
+        &self.table[index as usize]
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DFA {
+    /// All posible states and their transition table
+    pub(crate) states: Vec<State>,
+    pub(crate) ends: Vec<StateId>,
+    pub(crate) classes: IndexSet<ByteClass>,
+}
+
+impl Index<StateId> for DFA {
+    type Output = State;
+    fn index(&self, StateId(index): StateId) -> &Self::Output {
+        &self.states[index as usize]
+    }
+}
+
+impl IndexMut<StateId> for DFA {
+    fn index_mut(&mut self, StateId(index): StateId) -> &mut Self::Output {
+        &mut self.states[index as usize]
+    }
+}
+
+impl Index<ByteClassId> for DFA {
+    type Output = ByteClass;
+    fn index(&self, ByteClassId(index): ByteClassId) -> &Self::Output {
+        &self.classes[index as usize]
+    }
+}
+
+impl Index<(StateId, u8)> for DFA {
+    type Output = Option<StateId>;
+    fn index(&self, (id, b): (StateId, u8)) -> &Self::Output {
+        let state = &self[id];
+        &state[self[state.class][b]]
+    }
+}
+
 
 impl DFA {
-    fn get(&self, StateId(index): StateId) -> Option<&State> {
-        self.states.get(index as usize)
+    pub(crate) fn empty() -> Self {
+        Self {
+            states: vec![],
+            classes: IndexSet::new(),
+            ends: vec![],
+        }
     }
 
-    fn get_mut(&mut self, StateId(index): StateId) -> Option<&mut State> {
-        self.states.get_mut(index as usize)
+    pub fn new() -> Self {
+        Self {
+            states: vec![State::empty()],
+            classes: iter::once(ByteClass::empty()).collect(),
+            ends: vec![StateId::of(0)],
+        }
     }
 
     pub fn find(&self, input: &str) -> Option<StateId> {
         let mut current = StateId::of(0);
-        for c in input.chars() {
-            if let Some(next) = self.get(current).unwrap().get(c) {
+        for b in input.bytes() {
+            if let Some(next) = self[(current, b)] {
                 current = next;
             } else {
                 return None;
@@ -62,6 +97,45 @@ impl DFA {
             Some(current)
         } else {
             None
+        }
+    }
+
+    pub(crate) fn push_state(&mut self) -> StateId {
+        let id = StateId::of(self.states.len() as u32);
+        self.states.push(State::empty());
+        id
+    }
+
+    pub(crate) fn set_transitions<I>(&mut self, id: StateId, transitions: I)
+    where
+        I: IntoIterator<Item = Option<StateId>>,
+    {
+        let mut table = vec![];
+        let mut seen = IndexSet::new();
+        let mut class = ByteClass::empty();
+        for (b, id) in transitions.into_iter().enumerate() {
+            if let Some(i) = seen.get_index_of(&id) {
+                class.0[b] = i as u8;
+            } else {
+                class.0[b] = seen.len() as u8;
+                seen.insert(id);
+                table.push(id);
+            }
+        }
+
+        self[id].table = table;
+        
+        let class_id = self.push_class(class);
+        self[id].class = class_id;
+    }
+
+    pub(crate) fn push_class(&mut self, class: ByteClass) -> ByteClassId {
+        if let Some(id) = self.classes.get_index_of(&class) {
+            ByteClassId(id as u16)
+        } else {
+            let id = ByteClassId(self.classes.len() as u16);
+            self.classes.insert(class);
+            id
         }
     }
 
@@ -98,11 +172,12 @@ impl DFA {
         let mut new_states = BTreeMap::new();
         for (old_id, new_id) in &mapping {
             if !new_states.contains_key(&new_id) {
-                let mut state = mem::take(self.get_mut(*old_id).unwrap());
+                let mut state = mem::take(&mut self[*old_id]);
                 state
                     .table
                     .iter_mut()
-                    .for_each(|(_, id)| *id = *mapping.get(id).unwrap());
+                    .filter_map(|id| id.as_mut())
+                    .for_each(|id| *id = mapping[id]);
                 new_states.insert(new_id, state);
             }
         }
@@ -110,6 +185,7 @@ impl DFA {
         DFA {
             states: new_states.into_iter().map(|(_, state)| state).collect(),
             ends,
+            classes: self.classes,
         }
     }
 }

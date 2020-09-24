@@ -56,6 +56,5 @@ mod tests {
         let nfa = NFA::from(&pattern!("abc"*));
         let dfa = DFA::from(nfa);
         let minimized_dfa = dfa.minimize();
-        println!("{:?}", minimized_dfa);
     }
 }

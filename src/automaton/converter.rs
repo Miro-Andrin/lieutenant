@@ -1,7 +1,7 @@
 // http://www.cs.nuim.ie/~jpower/Courses/Previous/parsing/node9.html
 
 use super::*;
-use std::collections::{BTreeMap, BTreeSet, LinkedList};
+use std::collections::{BTreeMap, BTreeSet};
 
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> Self {
@@ -11,44 +11,39 @@ impl From<NFA> for DFA {
 
         let mut dfa: BTreeMap<StateId, BTreeMap<char, StateId>> = BTreeMap::new();
 
-        // Create the start state of the DFA by taking the epsilon_closure of the start state of the NFA. 
+        // Create the start state of the DFA by taking the epsilon_closure of the start state of the NFA.
         let mut stack: Vec<BTreeSet<StateId>> =
-            vec![nfa.epsilon_closure(iter::once(StateId::of(0)).collect())];
+            vec![nfa.epsilon_closure(iter::once(nfa.start).collect())];
 
         while let Some(nfa_ids) = stack.pop() {
             let dfa_id = StateId::of(next_dfa_id);
             next_dfa_id += 1;
             nfa_to_dfa.insert(nfa_ids.clone(), dfa_id);
 
-            let (transitions, lambdas): (Vec<_>, Vec<_>) = nfa_ids
-                .iter()
-                .copied()
-                .flat_map(|id| nfa.get(id).unwrap().iter())
-                .partition(|(t, _)| t.is_some());
-
-            let transitions: Vec<_> = transitions
-                .into_iter()
-                .map(|(c, id)| (c.unwrap(), *id))
-                .collect();
-            let lambdas: Vec<_> = lambdas.into_iter().map(|(_, id)| *id).collect();
+            let transitions = nfa_ids.iter().copied().flat_map(|id| {
+                nfa.get(id)
+                    .unwrap()
+                    .iter()
+                    .filter_map(|(c, id)| c.map(|c| (c, *id)))
+            });
 
             let mut dfa_transitions: BTreeMap<char, StateId> = BTreeMap::new();
 
             // For each possible input symbol
-            for (t_c, _) in transitions.into_iter() {
-                // Apply move to the newly-created state and the input symbol; this will return a set of states. 
+            for (t_c, _) in transitions {
+                // Apply move to the newly-created state and the input symbol; this will return a set of states.
                 let move_state = nfa.go(&nfa_ids, t_c);
 
-                // Apply the epsilon_closure to this set of states, possibly resulting in a new set. 
+                // Apply the epsilon_closure to this set of states, possibly resulting in a new set.
                 let move_state_e = nfa.epsilon_closure(move_state);
-                
-                // This set of NFA states will be a single state in the DFA. 
+
+                // This set of NFA states will be a single state in the DFA.
                 let dfa_e_id = if let Some(dfa_e_id) = nfa_to_dfa.get(&move_state_e) {
                     *dfa_e_id
                 } else {
                     let dfa_e_id = StateId::of(next_dfa_id);
 
-                    // Each time we generate a new DFA state, we must apply step 2 to it. The process is complete when applying step 2 does not yield any new states. 
+                    // Each time we generate a new DFA state, we must apply step 2 to it. The process is complete when applying step 2 does not yield any new states.
                     stack.push(move_state_e);
                     dfa_e_id
                 };

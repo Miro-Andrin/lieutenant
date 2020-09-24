@@ -100,7 +100,7 @@ impl NFA {
             new_start.insert(Self::EPSILON, new_end);
             new_start.insert(Self::EPSILON, old_start);
 
-            let old_end = self.get_mut(old_start).unwrap();
+            let old_end = self.get_mut(old_end).unwrap();
             old_end.insert(Self::EPSILON, new_end);
         }
 
@@ -112,7 +112,16 @@ impl NFA {
     }
 
     pub(crate) fn union(mut self, other: &Self) -> Self {
+        let new_start = self.push_state();
+        let new_end = self.push_state();
+        let old_start = self.start;
+        let old_end = self.end;
+
+        self.start = new_start;
+        self.end = new_end;
+
         let offset = self.states.len() as u32;
+        
         self.states.extend(
             other
                 .states
@@ -120,13 +129,21 @@ impl NFA {
                 .map(|(k, v)| (k.add(offset), v.offset(offset))),
         );
 
-        self.get_mut(self.start)
-            .unwrap()
-            .insert(Self::EPSILON, other.start.add(offset));
-        let end = self.end;
-        self.get_mut(other.end.add(offset))
-            .unwrap()
-            .insert(Self::EPSILON, end);
+        {
+            let new_start = self.get_mut(new_start).unwrap();
+            new_start.insert(Self::EPSILON, old_start);
+            new_start.insert(Self::EPSILON, other.start.add(offset));
+
+            let old_end = self.get_mut(old_end).unwrap();
+            old_end.insert(Self::EPSILON, new_end);
+            let other_end = self.get_mut(other.end.add(offset)).unwrap();
+            other_end.insert(Self::EPSILON, new_end);
+        }
+        self
+    }
+
+    pub(crate) fn not(mut self) -> Self {
+        mem::swap(&mut self.start, &mut self.end);
         self
     }
 

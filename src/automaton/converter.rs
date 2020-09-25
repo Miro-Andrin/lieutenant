@@ -9,15 +9,20 @@ impl From<NFA> for DFA {
 
         let mut dfa = DFA::empty();
 
+        let start_ids = nfa.epsilon_closure(iter::once(nfa.start).collect());
+        
+
         // Create the start state of the DFA by taking the epsilon_closure of the start state of the NFA.
         let mut stack: Vec<BTreeSet<StateId>> =
-            vec![nfa.epsilon_closure(iter::once(nfa.start).collect())];
+            vec![start_ids.clone()];
+
+        let dfa_id = dfa.push_state();
+        nfa_to_dfa.insert(start_ids.clone(), dfa_id);
 
         while let Some(nfa_ids) = stack.pop() {
-            let dfa_id = dfa.push_state();
-            nfa_to_dfa.insert(nfa_ids.clone(), dfa_id);
-
-            let mut transitions = vec![];
+            let mut transitions = Vec::with_capacity(256);
+            let is_end = nfa_ids.iter().any(|id| *id == nfa.end);
+            let dfa_id = nfa_to_dfa[&nfa_ids];
 
             // For each possible input symbol
             for b in 0..=255 as u8 {
@@ -35,7 +40,7 @@ impl From<NFA> for DFA {
                 let dfa_e_id = if let Some(dfa_e_id) = nfa_to_dfa.get(&move_state_e) {
                     *dfa_e_id
                 } else {
-                    let dfa_e_id = StateId::of(dfa.states.len() as u32);
+                    let dfa_e_id = dfa.push_state();
                     nfa_to_dfa.insert(move_state_e.clone(), dfa_e_id);
 
                     // Each time we generate a new DFA state, we must apply step 2 to it. The process is complete when applying step 2 does not yield any new states.
@@ -47,10 +52,13 @@ impl From<NFA> for DFA {
             }
 
             dfa.set_transitions(dfa_id, transitions);
-            if nfa_ids.iter().any(|id| *id == nfa.end) {
+            if is_end {
                 dfa.ends.push(dfa_id);
             }
         }
+
+        dfa.ends.dedup();
+        
         dfa
     }
 }

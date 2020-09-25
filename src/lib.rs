@@ -18,12 +18,14 @@ mod tests {
         let command = BlankBuilder::new()
             .literal("tp")
             .param()
-            .build::<(), _>(|_x: i32| Ok(()));
+            .param()
+            .param()
+            .build::<(), _>(|_x: i32, _y: i32, _z: i32| Ok(()));
         
         let nfa = NFA::from(command);
-        println!("{:?}", nfa);
+
         let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("tp 10").is_some());
+        assert!(dfa.find("tp 1 1 1").is_some());
     }
 }

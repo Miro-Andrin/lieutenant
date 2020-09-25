@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::command::NodeDescriptor;
-use crate::graph::{NodeKind, ParserKind, RootNode};
+use crate::graph::{Node, NodeId, NodeKind, ParserKind, RootNode};
 use indexmap::IndexSet;
 use std::collections::BTreeSet;
 
@@ -113,6 +113,11 @@ impl NFA {
                 .iter_mut()
                 .for_each(|ids| ids.iter_mut().for_each(|id| *id = id.add(offset)));
 
+            state
+                .epsilons
+                .iter_mut()
+                .for_each(|id| *id = id.add(offset));
+
             let byte_class = &other[state.class];
             let class_id = self.push_class(byte_class.clone());
             state.class = class_id;
@@ -203,9 +208,11 @@ impl NFA {
         false
     }
 
-    pub(crate) fn epsilon_closure(&self, mut states: BTreeSet<StateId>) -> BTreeSet<StateId> {
-        let mut stack: Vec<_> = states.iter().copied().collect();
+    pub(crate) fn epsilon_closure(&self, states: BTreeSet<StateId>) -> BTreeSet<StateId> {
+        let mut stack: Vec<_> = states.into_iter().collect();
+        let mut states = BTreeSet::new();
         while let Some(q) = stack.pop() {
+            states.insert(q);
             for q_e in self[q].epsilons.iter() {
                 if states.insert(*q_e) {
                     stack.push(*q_e)
@@ -270,9 +277,7 @@ impl<'a> From<&Pattern<'a>> for NFA {
             Pattern::Many(pattern) => NFA::from(*pattern).repeat(),
             Pattern::Concat(patterns) => patterns
                 .iter()
-                .fold(NFA::empty(), |nfa, pattern| {
-                    nfa.concat(&NFA::from(pattern))
-                }),
+                .fold(NFA::empty(), |nfa, pattern| nfa.concat(&NFA::from(pattern))),
             Pattern::Alt(patterns) => {
                 let mut patterns = patterns.iter();
                 if let Some(first) = patterns.next() {
@@ -328,21 +333,40 @@ impl<'a> From<&Pattern<'a>> for NFA {
     }
 }
 
+fn from_root<Ctx>(root: &RootNode<Ctx>, node: &Node<Ctx>) -> NFA {
+    let pattern = match &node.kind {
+        NodeKind::Literal(lit) => Pattern::literal(&lit),
+        NodeKind::Argument { parser, .. } => Pattern::from(parser),
+    };
+
+    let mut nfa = NFA::from(&pattern);
+
+    let mut children = node
+        .children
+        .iter()
+        .map(|node| from_root(root, &root[*node]));
+
+    if let Some(first) = children.next() {
+        nfa = nfa.concat(&NFA::from(&Pattern::SPACE_MANY_ONE));
+        nfa = nfa.concat(&children.fold(first, |acc, nfa| acc.union(&nfa)));
+    }
+
+    nfa
+}
+
 impl<Ctx> From<RootNode<Ctx>> for NFA {
     fn from(root: RootNode<Ctx>) -> Self {
-        let mut stack = root.children.clone();
         let mut nfa = NFA::empty();
-        while let Some(node_id) = stack.pop() {
-            let node = &root[node_id];
-            let pattern = match &node.kind {
-                NodeKind::Literal(lit) => Pattern::literal(&lit),
-                NodeKind::Argument { parser, .. } => Pattern::from(parser),
-            };
 
-            nfa = nfa.concat(&NFA::from(&pattern));
+        let mut children = root
+            .children
+            .iter()
+            .map(|node| from_root(&root, &root[*node]));
 
-            stack.extend(node.children.clone());
+        if let Some(first) = children.next() {
+            nfa = nfa.concat(&children.fold(first, |acc, nfa| acc.union(&nfa)));
         }
+
         nfa
     }
 }
@@ -462,8 +486,6 @@ mod tests {
         let tp = pattern!("tp");
         let tp_alt = NFA::from(&Pattern::alt(&[tp]));
         let empty_tp_alt = empty.concat(&tp_alt);
-
-        println!("{:?}", empty_tp_alt);
     }
 
     #[test]
@@ -471,7 +493,7 @@ mod tests {
         let digit = NFA::from(&Pattern::one_of("0123456789"));
         let digit_many = digit.clone().repeat();
         let digit_many_one = digit.concat(&digit_many);
-        
+
         let nfa = digit_many_one;
 
         assert!(nfa.find("0"));
@@ -485,5 +507,34 @@ mod tests {
         assert!(!nfa.find("ab123abasd"));
         assert!(!nfa.find("123123a"));
         assert!(!nfa.find("a123123"));
+    }
+
+    #[test]
+    fn space() {
+        let nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+
+        assert!(!nfa.find(""));
+        assert!(nfa.find(" "));
+        assert!(nfa.find("  "));
+        assert!(nfa.find("   "));
+        assert!(!nfa.find("abc "));
+        assert!(!nfa.find(" abc"));
+    }
+
+    #[test]
+    fn integer_space_integer() {
+        let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
+        let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+
+        let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+
+
+        let nfa = integer_space_integer_nfa;
+
+        assert!(nfa.find("10 10"));
+        assert!(!nfa.find(" 10 10"));
+        assert!(nfa.find("10    10"));
+        assert!(!nfa.find("a10 10"));
+        assert!(!nfa.find("10 10 "));
     }
 }

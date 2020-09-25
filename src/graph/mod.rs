@@ -7,7 +7,7 @@ use slab::Slab;
 use std::ops::{Index, IndexMut};
 use crate::automaton::{Pattern};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
 
 impl<Ctx> Index<NodeId> for Slab<Node<Ctx>> {

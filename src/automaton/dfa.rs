@@ -189,3 +189,52 @@ impl DFA {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automaton::NFA;
+
+    #[test]
+    fn integer_space_integer() {
+        let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
+        let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+
+        let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+
+
+        let nfa = integer_space_integer_nfa;
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("10 10").is_some());
+        assert!(dfa.find(" 10 10").is_none());
+        assert!(dfa.find("10    10").is_some());
+        assert!(dfa.find("a10 10").is_none());
+        assert!(dfa.find("10 10 ").is_none());
+    }
+
+    #[test]
+    fn abc() {
+        let nfa = NFA::from(&pattern!("abc"));
+        
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("").is_none());
+        assert!(dfa.find("abc").is_some());
+        assert!(dfa.find("abcabc").is_none());
+        assert!(dfa.find("a").is_none());
+    }
+
+    #[test]
+    fn abc_abc() {
+        let nfa = NFA::from(&pattern!("abc" "abc"));
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("").is_none());
+        assert!(dfa.find("a").is_none());
+        assert!(dfa.find("abc").is_none());
+        assert!(dfa.find("abcabc").is_some());
+        assert!(dfa.find("abcabcabc").is_none());
+    }
+}

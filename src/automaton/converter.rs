@@ -23,7 +23,7 @@ impl From<NFA> for DFA {
             let mut transitions = Vec::with_capacity(256);
             let is_end = nfa_ids.iter().any(|id| *id == nfa.end);
             let dfa_id = nfa_to_dfa[&nfa_ids];
-
+            
             // For each possible input symbol
             for b in 0..=255 as u8 {
                 // Apply move to the newly-created state and the input symbol; this will return a set of states.

@@ -33,7 +33,7 @@ impl StateId {
 pub(crate) struct ByteClassId(u16);
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) struct ByteClass(Vec<u8>);
+pub(crate) struct ByteClass(pub(crate) Vec<u8>);
 
 impl ByteClass {
     pub(crate) fn empty() -> Self {

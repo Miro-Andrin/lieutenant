@@ -188,6 +188,15 @@ impl DFA {
             classes: self.classes,
         }
     }
+
+    pub fn mem_size(&self) -> usize {
+        let mut size = mem::size_of::<DFA>();
+        size += self.states.len() * mem::size_of::<dfa::State>();
+        size += self.states.iter().map(|state| state.table.len() * mem::size_of::<StateId>()).sum::<usize>();
+        size += self.classes.len() * mem::size_of::<ByteClass>();
+        size += self.classes.iter().map(|class| class.0.len() * mem::size_of::<u8>()).sum::<usize>();
+        size
+    }
 }
 
 

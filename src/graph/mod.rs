@@ -6,6 +6,7 @@ pub use parser_kind::*;
 use slab::Slab;
 use std::ops::{Index, IndexMut};
 use crate::automaton::{Pattern};
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
@@ -51,6 +52,15 @@ impl<Ctx> Node<Ctx> {
     }
 }
 
+impl<Ctx> fmt::Debug for Node<Ctx> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{:?}", self.kind)?;
+        writeln!(f, "{:?}", self.children)?;
+        writeln!(f, "Executable: {}", self.execute.is_some())?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum NodeKind {
     Argument {
@@ -67,6 +77,15 @@ pub struct RootNode<Ctx> {
     // TODO, should be private
     pub(crate) children: Vec<NodeId>,
     pub(crate) execute: Option<Box<dyn Command<Ctx = Ctx, Output = Result<()>>>>,
+}
+
+impl<Ctx> fmt::Debug for RootNode<Ctx> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{:?}", self.nodes)?;
+        writeln!(f, "{:?}", self.children)?;
+        writeln!(f, "Executable: {}", self.execute.is_some())?;
+        Ok(())
+    }
 }
 
 impl<Ctx> Index<NodeId> for RootNode<Ctx> {
@@ -94,6 +113,10 @@ impl<Ctx> Default for RootNode<Ctx> {
 }
 
 impl<Ctx> RootNode<Ctx> {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn add_node(&mut self, parent: Option<NodeId>, node: Node<Ctx>) -> NodeId {
         let id = NodeId(self.nodes.insert(node));
         if let Some(parent) = parent.and_then(|id| self.nodes.get_mut(id.0)) {

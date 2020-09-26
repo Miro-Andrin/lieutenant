@@ -68,7 +68,8 @@ impl Index<(StateId, u8)> for DFA {
 
 
 impl DFA {
-    pub(crate) fn empty() -> Self {
+    /// Creates an DFA which matches nothing.
+    pub(crate) fn nothing() -> Self {
         Self {
             states: vec![],
             classes: IndexSet::new(),
@@ -76,7 +77,8 @@ impl DFA {
         }
     }
 
-    pub fn new() -> Self {
+    /// Creates an DFA which matches the empty string.
+    pub fn empty() -> Self {
         Self {
             states: vec![State::empty()],
             classes: iter::once(ByteClass::empty()).collect(),
@@ -84,22 +86,7 @@ impl DFA {
         }
     }
 
-    pub fn find(&self, input: &str) -> Option<StateId> {
-        let mut current = StateId::of(0);
-        for b in input.bytes() {
-            if let Some(next) = self[(current, b)] {
-                current = next;
-            } else {
-                return None;
-            }
-        }
-        if self.ends.contains(&current) {
-            Some(current)
-        } else {
-            None
-        }
-    }
-
+    /// Create a new empty state and returns its id. 
     pub(crate) fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
@@ -188,14 +175,23 @@ impl DFA {
             classes: self.classes,
         }
     }
+}
 
-    pub fn mem_size(&self) -> usize {
-        let mut size = mem::size_of::<DFA>();
-        size += self.states.len() * mem::size_of::<dfa::State>();
-        size += self.states.iter().map(|state| state.table.len() * mem::size_of::<StateId>()).sum::<usize>();
-        size += self.classes.len() * mem::size_of::<ByteClass>();
-        size += self.classes.iter().map(|class| class.0.len() * mem::size_of::<u8>()).sum::<usize>();
-        size
+impl Find<StateId> for DFA {
+    fn find(&self, input: &str) -> Result<StateId, StateId> {
+        let mut current = StateId::of(0);
+        for b in input.bytes() {
+            if let Some(next) = self[(current, b)] {
+                current = next;
+            } else {
+                return Err(current);
+            }
+        }
+        if self.ends.contains(&current) {
+            Ok(current)
+        } else {
+            Err(current)
+        }
     }
 }
 
@@ -203,12 +199,13 @@ impl DFA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::automaton::NFA;
+    use crate::automaton::{NFA, pattern::*};
+    use std::borrow::Cow;
 
     #[test]
     fn integer_space_integer() {
-        let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
-        let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+        let integer_nfa = NFA::from(Pattern::INTEGER);
+        let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
 
         let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
 
@@ -216,34 +213,34 @@ mod tests {
         let nfa = integer_space_integer_nfa;
         let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("10 10").is_some());
-        assert!(dfa.find(" 10 10").is_none());
-        assert!(dfa.find("10    10").is_some());
-        assert!(dfa.find("a10 10").is_none());
-        assert!(dfa.find("10 10 ").is_none());
+        assert!(dfa.find("10 10").is_ok());
+        assert!(dfa.find(" 10 10").is_err());
+        assert!(dfa.find("10    10").is_ok());
+        assert!(dfa.find("a10 10").is_err());
+        assert!(dfa.find("10 10 ").is_err());
     }
 
     #[test]
     fn abc() {
-        let nfa = NFA::from(&pattern!("abc"));
+        let nfa = NFA::from(&literal("abc"));
         
         let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("").is_none());
-        assert!(dfa.find("abc").is_some());
-        assert!(dfa.find("abcabc").is_none());
-        assert!(dfa.find("a").is_none());
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("abc").is_ok());
+        assert!(dfa.find("abcabc").is_err());
+        assert!(dfa.find("a").is_err());
     }
 
     #[test]
     fn abc_abc() {
-        let nfa = NFA::from(&pattern!("abc" "abc"));
+        let nfa = NFA::from(&concat(&[Cow::Owned(literal("abc")), Cow::Owned(literal("abc"))]));
         let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("").is_none());
-        assert!(dfa.find("a").is_none());
-        assert!(dfa.find("abc").is_none());
-        assert!(dfa.find("abcabc").is_some());
-        assert!(dfa.find("abcabcabc").is_none());
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("abc").is_err());
+        assert!(dfa.find("abcabc").is_ok());
+        assert!(dfa.find("abcabcabc").is_err());
     }
 }

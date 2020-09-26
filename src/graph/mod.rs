@@ -5,7 +5,7 @@ use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
 use std::ops::{Index, IndexMut};
-use crate::automaton::{Pattern};
+use crate::automaton::{NFA};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -163,11 +163,12 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
     }
 }
 
-impl<'a> From<&'a NodeKind> for Pattern<'a> {
-    fn from(kind: &'a NodeKind) -> Self {
+impl From<&NodeKind> for NFA {
+    fn from(kind: &NodeKind) -> Self {
+        use crate::automaton::pattern::*;
         match kind {
-            NodeKind::Literal(lit) => Pattern::literal(&lit),
-            NodeKind::Argument { parser } => Self::from(parser),
+            NodeKind::Literal(lit) => NFA::from(&literal(lit.as_ref())),
+            NodeKind::Argument { parser, .. } => NFA::from(parser),
         }
     }
 }

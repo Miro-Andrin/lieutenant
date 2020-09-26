@@ -11,7 +11,7 @@ pub use error::*;
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use crate::automaton::{NFA, DFA, dfa, StateId, ByteClass};
+    use crate::automaton::{Find, NFA, DFA, dfa, StateId, ByteClass};
     use std::mem;
 
     #[test]
@@ -38,6 +38,6 @@ mod tests {
         let dfa = dfa.minimize();
         println!("size after: {}", size);
 
-        assert!(dfa.find("tp 1 1 1").is_some());
+        assert!(dfa.find("tp 1 1 1").is_ok());
     }
 }

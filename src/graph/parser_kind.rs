@@ -1,6 +1,5 @@
 use crate::automaton::{Pattern, NFA};
 use crate::error::Result;
-use crate::pattern;
 use crate::values::Value;
 use std::ops::RangeInclusive;
 use lazy_static::lazy_static;
@@ -83,23 +82,27 @@ impl ParserKind {
     }
 }
 
-impl<'a> From<&'a ParserKind> for &NFA {
+impl<'a> From<&'a ParserKind> for NFA {
     fn from(parser: &'a ParserKind) -> Self {
-        let optional = Pattern::optional;
-        let concat = Pattern::concat;
+        // lazy_static! {
+        //     static ref WORD: NFA = NFA::from(&Pattern::WORD);
+        //     static ref BOOL: NFA = NFA::from(&Pattern::Alt(&[pattern!("true"), pattern!("false")]));
+        //     static ref DIGIT: NFA = NFA::from(&Pattern::DIGIT);
+        //     static ref SIGN: NFA = NFA::from(&Pattern::alt(&[pattern!("+"), pattern!("-")]));
+        //     static ref NUMBER: NFA = DIGIT.clone().concat(&DIGIT.clone().repeat());
+        //     static ref INTEGER: NFA = SIGN.clone().concat(&NUMBER);
+        //     static ref DOT: NFA = NFA::from(&pattern!("."));
+        //     static ref FLOAT: NFA = INTEGER.clone().union(&INTEGER.clone().concat(DOT));
+        // }
 
-        lazy_static! {
-            static ref WORD: NFA = NFA::from(&Pattern::WORD);
-            static ref BOOL: NFA = NFA::from(&Pattern::Alt(&[pattern!("true"), pattern!("false")]));
-        }
+        // match parser {
+        //     ParserKind::Bool => BOOL.clone(),
+        //     ParserKind::String(StringProperty::SingleWord) => WORD.clone(),
 
-        match parser {
-            ParserKind::Bool => &BOOL,
-            ParserKind::String(StringProperty::SingleWord) => &WORD,
-
-            // ParserKind::Double(_) => concat(&[optional(&pattern!("-"))]),
-            // ParserKind::String(StringProperty::GreedyPhrase) => Pattern::concat(&[Pattern::WORD, Pattern::SPACE]).repeat(),
-            _ => todo!(),
-        }
+        //     // ParserKind::Double(_) => concat(&[optional(&pattern!("-"))]),
+        //     // ParserKind::String(StringProperty::GreedyPhrase) => Pattern::concat(&[Pattern::WORD, Pattern::SPACE]).repeat(),
+        //     _ => todo!(),
+        // }
+        todo!()
     }
 }

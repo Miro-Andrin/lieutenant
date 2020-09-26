@@ -10,6 +10,7 @@ anyhow = "1.0"
 unicase = "2.6"
 slab = "0.4"
 indexmap = "1.6"
+lazy_static = "1.4"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -22,6 +23,3 @@ members = [".", "macros"]
 [[bench]]
 name = "simple"
 harness = false
-
-[profile.release]
-debug = 1

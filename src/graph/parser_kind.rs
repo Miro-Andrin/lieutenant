@@ -1,9 +1,9 @@
-
-use std::ops::RangeInclusive;
+use crate::automaton::{Pattern, NFA};
 use crate::error::Result;
-use crate::values::Value;
-use crate::automaton::{Pattern};
 use crate::pattern;
+use crate::values::Value;
+use std::ops::RangeInclusive;
+use lazy_static::lazy_static;
 
 #[derive(Debug, PartialEq)]
 pub enum StringProperty {
@@ -77,26 +77,29 @@ impl ParserKind {
     pub fn parse(&self, input: &str) -> Result<Value> {
         use ParserKind::*;
         match self {
-            IntRange => {
-                Ok(Value::I32(input.parse::<i32>().unwrap()))
-            }
+            IntRange => Ok(Value::I32(input.parse::<i32>().unwrap())),
             _ => unimplemented!(),
         }
     }
 }
 
-impl<'a> From<&'a ParserKind> for Pattern<'a> {
+impl<'a> From<&'a ParserKind> for &NFA {
     fn from(parser: &'a ParserKind) -> Self {
         let optional = Pattern::optional;
         let concat = Pattern::concat;
 
+        lazy_static! {
+            static ref WORD: NFA = NFA::from(&Pattern::WORD);
+            static ref BOOL: NFA = NFA::from(&Pattern::Alt(&[pattern!("true"), pattern!("false")]));
+        }
+
         match parser {
-            ParserKind::Bool => Pattern::Alt(&[pattern!("true"), pattern!("false")]),
-            ParserKind::String(StringProperty::SingleWord) => Pattern::WORD,
-            ParserKind::Integer(_) => pattern!(["0123456789"]["0123456789"]*),
+            ParserKind::Bool => &BOOL,
+            ParserKind::String(StringProperty::SingleWord) => &WORD,
+
             // ParserKind::Double(_) => concat(&[optional(&pattern!("-"))]),
             // ParserKind::String(StringProperty::GreedyPhrase) => Pattern::concat(&[Pattern::WORD, Pattern::SPACE]).repeat(),
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

@@ -33,7 +33,7 @@ impl Index<u8> for State {
 #[derive(Debug, Clone)]
 pub struct DFA {
     /// All posible states and their transition table
-    pub(crate) states: Vec<State>,
+    pub states: Vec<State>,
     pub(crate) ends: Vec<StateId>,
     pub(crate) classes: IndexSet<ByteClass>,
 }

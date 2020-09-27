@@ -30,8 +30,8 @@ mod tests {
         let mut size = mem::size_of::<DFA>();
         size += mem::size_of::<dfa::State>() * dfa.states.len();
         size += dfa.states.iter().map(|state| state.table.len() * mem::size_of::<StateId>()).sum::<usize>();
-        size += dfa.classes.len() * mem::size_of::<ByteClass>();
-        size += dfa.classes.iter().map(|class| class.0.len() * mem::size_of::<u8>()).sum::<usize>();
+        size += dfa.transitions.len() * mem::size_of::<ByteClass>();
+        size += dfa.transitions.iter().map(|class| class.0.len() * mem::size_of::<u8>()).sum::<usize>();
 
         println!("size before: {}", size);
 

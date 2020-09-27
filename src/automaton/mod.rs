@@ -31,6 +31,8 @@ impl StateId {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct ByteClassId(u16);
 
+// The standard libray is about to implement a subset of const generics, when this lands
+// we could change the Vec<u8>  to [u8: 256] and get Eq, Ord and Hash. 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct ByteClass(pub(crate) Vec<u8>);
 
@@ -42,51 +44,22 @@ impl ByteClass {
     pub(crate) fn is_empty(&self) -> bool {
         self.0.iter().all(|t| *t == 0)
     }
-}
 
-#[derive(Clone, Copy)]
-pub(crate) struct ByteSet([bool; 256]);
-
-impl ByteSet {
-    fn empty() -> Self {
-        Self([false; 256])
-    }
-
-    pub fn add_range(&mut self, range: Range<u8>) {
-        let min = range.start;
-        let max = range.end;
-        self.0[min as usize] = true;
-        if max < 255 {
-            self.0[max as usize + 1] = true;
-        }
+    pub (crate) fn full() -> Self {
+        ByteClass(vec![1;256])
     }
 }
 
-impl From<ByteSet> for ByteClass {
-    fn from(set: ByteSet) -> Self {
-        Self(
-            set.0
-                .to_vec()
-                .into_iter()
-                .scan(0u8, |acc, x| Some(*acc + (x as u8)))
-                .collect(),
-        )
+
+impl From<u8> for ByteClass {
+    fn from(value: u8) -> Self {
+        let mut values = [0u8;256];
+        values[value as usize] = 1;
+        return Self(values.to_vec());
     }
 }
 
-impl From<Range<u8>> for ByteSet {
-    fn from(range: Range<u8>) -> Self {
-        let mut set = ByteSet::empty();
-        set.add_range(range);
-        set
-    }
-}
 
-impl From<Range<u8>> for ByteClass {
-    fn from(range: Range<u8>) -> Self {
-        Self::from(ByteSet::from(range))
-    }
-}
 
 impl fmt::Debug for ByteClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -118,6 +91,21 @@ mod tests {
     use super::pattern::*;
 
     #[test]
+    fn byteclass_from_u8() {
+        let bc = ByteClass::from(255u8);
+        assert!(bc.0.len() == 256);
+        assert!(bc.0[255] == 1);
+
+        let bc = ByteClass::from(0u8);
+        assert!(bc.0.len() == 256);
+        assert!(bc.0[0] == 1);
+    }
+
+    
+
+
+
+    #[test]
     fn abc() {
         let nfa = NFA::from(&literal("abc"));
         let dfa = DFA::from(nfa);
@@ -125,6 +113,22 @@ mod tests {
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
         assert!(dfa.find("abca").is_err());
+        assert!(dfa.find("abd").is_err());
+        assert!(dfa.find("add").is_err());
+        assert!(dfa.find("ab").is_err());
+        assert!(dfa.find("aab").is_err());
+        assert!(dfa.find("ddd").is_err());
+
+
+        let nfa = NFA::from(&literal("aa"));
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("aaa").is_err());
+        assert!(dfa.find("aa").is_ok());
+        
+
     }
 
     #[test]
@@ -135,6 +139,9 @@ mod tests {
         assert!(dfa.find("abc").is_ok());
         assert!(dfa.find("abcabc").is_ok());
         assert!(dfa.find("abca").is_err());
+        assert!(dfa.find("abcab").is_err());
+        assert!(dfa.find("abcabd").is_err());
+
     }
 
     #[test]

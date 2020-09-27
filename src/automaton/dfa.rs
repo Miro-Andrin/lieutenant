@@ -32,10 +32,10 @@ impl Index<u8> for State {
 
 #[derive(Debug, Clone)]
 pub struct DFA {
-    /// All posible states and their transition table
+    /// The states are the nodes of the DFA. The states hold refferences to transition tables, that c
     pub states: Vec<State>,
     pub(crate) ends: Vec<StateId>,
-    pub(crate) classes: IndexSet<ByteClass>,
+    pub(crate) transitions: IndexSet<ByteClass>,
 }
 
 impl Index<StateId> for DFA {
@@ -54,7 +54,7 @@ impl IndexMut<StateId> for DFA {
 impl Index<ByteClassId> for DFA {
     type Output = ByteClass;
     fn index(&self, ByteClassId(index): ByteClassId) -> &Self::Output {
-        &self.classes[index as usize]
+        &self.transitions[index as usize]
     }
 }
 
@@ -72,7 +72,7 @@ impl DFA {
     pub(crate) fn nothing() -> Self {
         Self {
             states: vec![],
-            classes: IndexSet::new(),
+            transitions: IndexSet::new(),
             ends: vec![],
         }
     }
@@ -81,7 +81,7 @@ impl DFA {
     pub fn empty() -> Self {
         Self {
             states: vec![State::empty()],
-            classes: iter::once(ByteClass::empty()).collect(),
+            transitions: iter::once(ByteClass::empty()).collect(),
             ends: vec![StateId::of(0)],
         }
     }
@@ -117,11 +117,11 @@ impl DFA {
     }
 
     pub(crate) fn push_class(&mut self, class: ByteClass) -> ByteClassId {
-        if let Some(id) = self.classes.get_index_of(&class) {
+        if let Some(id) = self.transitions.get_index_of(&class) {
             ByteClassId(id as u16)
         } else {
-            let id = ByteClassId(self.classes.len() as u16);
-            self.classes.insert(class);
+            let id = ByteClassId(self.transitions.len() as u16);
+            self.transitions.insert(class);
             id
         }
     }
@@ -172,7 +172,7 @@ impl DFA {
         DFA {
             states: new_states.into_iter().map(|(_, state)| state).collect(),
             ends,
-            classes: self.classes,
+            transitions: self.transitions,
         }
     }
 }
@@ -201,6 +201,65 @@ mod tests {
     use super::*;
     use crate::automaton::{NFA, pattern::*};
     use std::borrow::Cow;
+
+    #[test]
+    fn match_any_u8() {
+
+        let nfa = NFA::single_u8();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_ok());
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find(" ").is_ok());
+        assert!(dfa.find("aa").is_err());
+        assert!(dfa.find("😀").is_err()); //More then one u8
+        
+
+
+    }
+
+    // #[test]
+    // fn not_empy() {
+
+    //     let empty = NFA::from(&literal(""));
+    //     let dfa = DFA::from(empty);
+
+    //     assert!(dfa.find("").is_ok());
+    //     assert!(dfa.find(" ").is_err());
+
+
+    //     let not_empty = NFA::from(&literal("")).not();
+    //     let dfa = DFA::from(not_empty);
+
+    //     assert!(dfa.find("").is_err());
+    //     //assert!(dfa.find(" ").is_ok());
+    //     assert!(dfa.find("a").is_ok());
+
+    // }
+
+
+    // #[test]
+    // fn not_something() {
+
+    //     let nfa = NFA::from(&literal("a"));
+    //     let dfa = DFA::from(nfa);
+
+    //     assert!(dfa.find("a").is_ok());
+    //     assert!(dfa.find("b").is_err());
+
+
+    //     let not_nfa = NFA::from(&literal("")).not();
+    //     let dfa = DFA::from(not_nfa);
+
+    //     assert!(dfa.find("a").is_err());
+    //     //assert!(dfa.find(" ").is_ok());
+    //     assert!(dfa.find("b").is_ok());
+
+    // }
+
+
 
     #[test]
     fn integer_space_integer() {

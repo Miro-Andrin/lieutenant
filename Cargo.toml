@@ -11,6 +11,7 @@ unicase = "2.6"
 slab = "0.4"
 indexmap = "1.6"
 lazy_static = "1.4"
+regex-syntax = "0.6.18"
 
 [dev-dependencies]
 criterion = "0.3"

@@ -1,9 +1,10 @@
 mod parser_kind;
 
-use crate::command::Command;
+use crate::{automaton::nfa::regex_to_nfa, command::Command};
 use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
+use regex_syntax::hir::Hir;
 use std::ops::{Index, IndexMut};
 use crate::automaton::{NFA};
 use std::fmt;
@@ -165,9 +166,22 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
 
 impl From<&NodeKind> for NFA {
     fn from(kind: &NodeKind) -> Self {
-        use crate::automaton::pattern::*;
         match kind {
-            NodeKind::Literal(lit) => NFA::from(&literal(lit.as_ref())),
+            
+         
+
+            NodeKind::Literal(lit) => {
+
+                //We create a regex hir that represents the concat of all char in the literal
+                let hir : regex_syntax::hir::Hir = Hir{
+                    kind: regex_syntax::hir::HirKind::Concat(),
+                    info: (),
+                    
+                };
+
+                regex_to_nfa(lit.as_ref()).unwrap()
+
+            }
             NodeKind::Argument { parser, .. } => NFA::from(parser),
         }
     }

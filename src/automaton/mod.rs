@@ -1,4 +1,3 @@
-pub use pattern::{Pattern};
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
@@ -87,7 +86,9 @@ pub trait Find<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+        use nfa::regex_to_nfa;
+
+use super::*;
     use super::pattern::*;
 
     #[test]
@@ -107,7 +108,8 @@ mod tests {
 
     #[test]
     fn abc() {
-        let nfa = NFA::from(&literal("abc"));
+        
+        let nfa = regex_to_nfa("abc").unwrap();
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("").is_err());
@@ -120,7 +122,7 @@ mod tests {
         assert!(dfa.find("ddd").is_err());
 
 
-        let nfa = NFA::from(&literal("aa"));
+        let nfa = regex_to_nfa("aa").unwrap();
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("").is_err());
@@ -133,7 +135,7 @@ mod tests {
 
     #[test]
     fn abc_repeat() {
-        let nfa = NFA::from(&many(&literal("abc")));
+        let nfa = regex_to_nfa("(abc)*").unwrap();
         let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_ok());
         assert!(dfa.find("abc").is_ok());
@@ -146,7 +148,7 @@ mod tests {
 
     #[test]
     fn minimize() {
-        let nfa = NFA::from(&many(&literal("abc")));
+        let nfa = regex_to_nfa("(abc)*").unwrap();
         let dfa = DFA::from(nfa);
         let minimized_dfa = dfa.minimize();
     }

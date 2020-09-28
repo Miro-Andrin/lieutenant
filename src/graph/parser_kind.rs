@@ -1,8 +1,7 @@
-use crate::automaton::{Pattern, NFA};
+use crate::automaton::{NFA};
 use crate::error::Result;
 use crate::values::Value;
 use std::ops::RangeInclusive;
-use lazy_static::lazy_static;
 
 #[derive(Debug, PartialEq)]
 pub enum StringProperty {

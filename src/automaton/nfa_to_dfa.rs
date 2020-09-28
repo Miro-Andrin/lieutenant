@@ -2,6 +2,7 @@
 
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
+use nfa::regex_to_nfa;
 
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> Self {
@@ -70,18 +71,18 @@ mod tests {
 
     #[test]
     fn abc_repeat() {
-        let nfa_abc_repeat = NFA::from(&many(&literal("abc")));
+        let nfa_abc_repeat = regex_to_nfa("(abc)*").unwrap();
 
         let dfa_abc_repeat = DFA::from(nfa_abc_repeat);
     }
 
     #[test]
     fn abc_u_abc() {
-        let nfa_abc = NFA::from(&literal("abc"));
-        let nfa_def = NFA::from(&literal("def"));
+        let nfa_abc = regex_to_nfa("abc").unwrap();
+        let nfa_def = regex_to_nfa("def").unwrap();
         let nfa_abc_u_abc = nfa_abc.union(&nfa_def);
 
-        let nfa = NFA::from(&literal("a")).concat(&nfa_abc_u_abc);
+        let nfa = regex_to_nfa("a").unwrap().concat(&nfa_abc_u_abc);
 
         println!("{:?}", nfa);
 

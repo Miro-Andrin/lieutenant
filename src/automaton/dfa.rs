@@ -198,7 +198,9 @@ impl Find<StateId> for DFA {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+        use nfa::regex_to_nfa;
+
+use super::*;
     use crate::automaton::{NFA, pattern::*};
     use std::borrow::Cow;
 
@@ -261,27 +263,27 @@ mod tests {
 
 
 
-    #[test]
-    fn integer_space_integer() {
-        let integer_nfa = NFA::from(Pattern::INTEGER);
-        let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
+    // #[test]
+    // fn integer_space_integer() {
+    //     let integer_nfa = regex_to_nfa("[0-9][0-9]*");
+    //     let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
 
-        let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+    //     let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
 
 
-        let nfa = integer_space_integer_nfa;
-        let dfa = DFA::from(nfa);
+    //     let nfa = integer_space_integer_nfa;
+    //     let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("10 10").is_ok());
-        assert!(dfa.find(" 10 10").is_err());
-        assert!(dfa.find("10    10").is_ok());
-        assert!(dfa.find("a10 10").is_err());
-        assert!(dfa.find("10 10 ").is_err());
-    }
+    //     assert!(dfa.find("10 10").is_ok());
+    //     assert!(dfa.find(" 10 10").is_err());
+    //     assert!(dfa.find("10    10").is_ok());
+    //     assert!(dfa.find("a10 10").is_err());
+    //     assert!(dfa.find("10 10 ").is_err());
+    // }
 
     #[test]
     fn abc() {
-        let nfa = NFA::from(&literal("abc"));
+        let nfa = regex_to_nfa("abc").unwrap();
         
         let dfa = DFA::from(nfa);
 
@@ -291,15 +293,4 @@ mod tests {
         assert!(dfa.find("a").is_err());
     }
 
-    #[test]
-    fn abc_abc() {
-        let nfa = NFA::from(&concat(&[Cow::Owned(literal("abc")), Cow::Owned(literal("abc"))]));
-        let dfa = DFA::from(nfa);
-
-        assert!(dfa.find("").is_err());
-        assert!(dfa.find("a").is_err());
-        assert!(dfa.find("abc").is_err());
-        assert!(dfa.find("abcabc").is_ok());
-        assert!(dfa.find("abcabcabc").is_err());
-    }
 }

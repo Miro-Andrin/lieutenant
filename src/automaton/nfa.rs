@@ -125,15 +125,6 @@ impl NFA {
         nfa
     }
 
-    
-    pub(crate) fn dot_utf_8() -> Self {
-        // This method creates 4 - nodes. 
-        
-        
-        
-
-    }
-
     fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
@@ -532,7 +523,7 @@ mod tests {
         assert!(dfa.find("").is_err());
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_ok());
-        assert!(dfa.find("").is_ok());
+        assert!(dfa.find(" ").is_ok());
     }
 
     //     #[test]

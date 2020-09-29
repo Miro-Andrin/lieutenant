@@ -51,8 +51,8 @@ impl ByteClass {
 
     pub(crate) fn ones_except_last_byte() -> Self {
 
-        let v = vec![0;256];
-        for i in 128..=256u8 {
+        let mut v = vec![0;256];
+        for i in 128..=255u8 {
             v[i as usize] = 1;
         }
         

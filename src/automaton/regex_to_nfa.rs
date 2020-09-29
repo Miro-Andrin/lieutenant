@@ -1,82 +1,70 @@
-
-
 use std::ops::Range;
 
-use regex_syntax::{Parser, hir::ClassUnicodeRange};
+use regex_syntax::{hir::ClassUnicodeRange, Parser};
 
 use super::{ByteClass, NFA};
-
+use anyhow::{bail, Result};
 
 impl From<&ClassUnicodeRange> for NFA {
     fn from(rng: &ClassUnicodeRange) -> Self {
-
         let start = rng.start();
         let end = rng.end();
 
-        if start as u32  == 0x0 && end as u32 == 0x9 {
+        if start as u32 == 0x0 && end as u32 == 0x9 {
             //This means we are matching on a dot
 
-            //Create a nfa the matches any byte that does not end in a 1. 
+            //Create a nfa the matches any byte that does not end in a 1.
             let nfa_not_end = NFA::empty();
 
+            // let mut buffer = [0; 4];
+            //     let mut classes = vec![ByteClass::empty(); 4];
+            //     for c in one_of.chars() {
+            //         let bytes = c.encode_utf8(&mut buffer);
+            //         for (i, b) in bytes.bytes().enumerate() {
+            //             if i + 1 < c.len_utf8() {
+            //                 classes[i][b] = 2;
+            //             } else {
+            //                 classes[i][b] = 1;
+            //             }
+            //         }
+            //     }
+            //     let mut nfa = NFA::empty();
+            //     let mut id = nfa.start;
 
-            
-            
+            //     let classes: Vec<_> = classes
+            //         .into_iter()
+            //         .take_while(|class| !class.is_empty())
+            //         .collect();
 
-            
-            let mut buffer = [0; 4];
-                let mut classes = vec![ByteClass::empty(); 4];
-                for c in one_of.chars() {
-                    let bytes = c.encode_utf8(&mut buffer);
-                    for (i, b) in bytes.bytes().enumerate() {
-                        if i + 1 < c.len_utf8() {
-                            classes[i][b] = 2;
-                        } else {
-                            classes[i][b] = 1;
-                        }
-                    }
-                }
-                let mut nfa = NFA::empty();
-                let mut id = nfa.start;
+            //     let end = StateId::of(classes.len() as u32);
 
-                let classes: Vec<_> = classes
-                    .into_iter()
-                    .take_while(|class| !class.is_empty())
-                    .collect();
+            //     for class in classes {
+            //         let next_id = nfa.push_state();
+            //         if next_id == end {
+            //             nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
+            //         } else {
+            //             nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
+            //         }
+            //         id = next_id;
+            //     }
 
-                let end = StateId::of(classes.len() as u32);
+            //     nfa.end = id;
 
-                for class in classes {
-                    let next_id = nfa.push_state();
-                    if next_id == end {
-                        nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
-                    } else {
-                        nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
-                    }
-                    id = next_id;
-                }
-
-                nfa.end = id;
-
-                nfa
-
+            //     nfa
         }
-        
 
-        // 
-        println!("{:?}",rng);
+        //
+        println!("{:?}", rng);
         todo!();
-
     }
 }
 
-
-pub(crate) fn regex_to_nfa(regex: &str) -> Result<NFA, String> {
-    let hir = Parser::new().parse(regex).unwrap();
+pub(crate) fn regex_to_nfa(regex: &str) -> Result<NFA> {
+    let hir = Parser::new().parse(regex)?;
     hir_to_nfa(hir)
 }
 
-fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA, String> {
+fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA> {
     match hir.into_kind() {
         regex_syntax::hir::HirKind::Empty => Ok(NFA::single_u8()),
         regex_syntax::hir::HirKind::Literal(lit) => match lit {
@@ -87,11 +75,29 @@ fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA, String> {
             match class {
                 regex_syntax::hir::Class::Unicode(uni) => {
                     let mut nfa = NFA::empty();
-                    for range in uni.iter() {
-                        //Todo check that range is inclusive
-                        nfa = nfa.union(&NFA::from(range));
+                    let mut states = [[0u8; 256]; 4];
+                    for range in uni.ranges() {
+                        let mut start = [0u8; 4];
+                        range.start().encode_utf8(&mut start);
+                        let mut end = [0u8; 4];
+                        range.end().encode_utf8(&mut end);
+
+                        // [0x00, 0x00, 0x00, 0x09]
+                        // [0x00, 0x10, 0xff, 0xff]
+
+                        for (state, (lower, upper)) in
+                            start.iter().copied().zip(end.iter().copied()).enumerate()
+                        {
+                            for b in lower..=upper {
+                                if b < 127 {
+                                    states[state][b as usize] = 1;
+                                } else {
+                                    states[state][b as usize] = 2;
+                                }
+                            }
+                        }
                     }
-                    Ok(nfa)
+                    todo!()
                 }
                 regex_syntax::hir::Class::Bytes(byte) => {
                     let mut nfa = NFA::empty();
@@ -107,16 +113,10 @@ fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA, String> {
             }
         }
         regex_syntax::hir::HirKind::Anchor(x) => match x {
-            regex_syntax::hir::Anchor::StartLine => {
-                Err("We dont suport StartLine symbols!".to_string())
-            }
-            regex_syntax::hir::Anchor::EndLine => {
-                Err("We dont suport EndLine symbols!".to_string())
-            }
-            regex_syntax::hir::Anchor::StartText => {
-                Err("We dont suport StartText symbol!".to_string())
-            }
-            regex_syntax::hir::Anchor::EndText => Err("We dont suport EndText symbol!".to_string()),
+            regex_syntax::hir::Anchor::StartLine => bail!("We dont suport StartLine symbols!"),
+            regex_syntax::hir::Anchor::EndLine => bail!("We dont suport EndLine symbols!"),
+            regex_syntax::hir::Anchor::StartText => bail!("We dont suport StartText symbol!"),
+            regex_syntax::hir::Anchor::EndText => bail!("We dont suport EndText symbol!"),
         },
         regex_syntax::hir::HirKind::WordBoundary(boundary) => {
             match boundary {
@@ -139,7 +139,7 @@ fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA, String> {
                 let nfa = hir_to_nfa(*x.hir)?;
                 Ok(nfa.repeat())
             } else {
-                Err("We dont suport non greedy patterns".to_string())
+                bail!("We dont suport non greedy patterns")
             }
         }
         regex_syntax::hir::HirKind::Group(group) => {

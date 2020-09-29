@@ -1,11 +1,11 @@
 mod builder;
 
 use crate::generic::{Func, Tuple};
+use crate::graph::{NodeKind, ParserKind, StringProperty};
 use crate::values::{FromValues, Values};
 use std::marker::PhantomData;
-use crate::graph::{NodeKind, ParserKind, StringProperty};
 
-pub use self::builder::{CommandBuilder, BlankBuilder};
+pub use self::builder::{BlankBuilder, CommandBuilder};
 
 pub trait Command {
     type Ctx;
@@ -64,7 +64,6 @@ node_parser!(f32; ParserKind::Float(f32::MIN..=f32::MAX));
 node_parser!(i32; ParserKind::Integer(i32::MIN..=i32::MAX));
 node_parser!(String; ParserKind::String(StringProperty::SingleWord));
 
-
 #[cfg(test)]
 mod tests {
     use super::builder::*;
@@ -75,23 +74,20 @@ mod tests {
         let mut a = BlankBuilder::new()
             .literal("a")
             .param()
-            .build::<(), _>(|_x: i32| { println!("hello world!"); Ok(()) });
+            .build::<(), _>(|_x: i32| {
+                println!("hello world!");
+                Ok(())
+            });
 
-        let b = BlankBuilder::new()
-            .literal("b")
-            .param()
-            .build(teleport);
+        let b = BlankBuilder::new().literal("b").param().build(teleport);
 
-        let c = BlankBuilder::new()
-            .literal("c")
-            .param()
-            .build(teleport);
-        
+        let c = BlankBuilder::new().literal("c").param().build(teleport);
+
         a.merge(b);
         a.merge(c);
     }
 
-    fn teleport(x: i32) -> crate::error::Result<()>{
+    fn teleport(x: i32) -> crate::error::Result<()> {
         println!("it works {}", x);
         Ok(())
     }

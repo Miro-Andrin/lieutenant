@@ -1,4 +1,4 @@
-use crate::automaton::{NFA};
+use crate::automaton::NFA;
 use crate::error::Result;
 use crate::values::Value;
 use std::ops::RangeInclusive;

@@ -24,10 +24,7 @@ impl<'i> Clone for Values<'i> {
 
 impl<'i> From<&'i Vec<Value<'i>>> for Values<'i> {
     fn from(values: &'i Vec<Value<'i>>) -> Self {
-        Self {
-            values,
-            pos: 0,
-        }
+        Self { values, pos: 0 }
     }
 }
 
@@ -46,7 +43,6 @@ pub trait FromValue<Ctx>: Sized {
 pub trait FromValues<Ctx>: Sized {
     fn from_values(ctx: &mut Ctx, values: &mut Values) -> Option<Self>;
 }
-
 
 impl<Ctx> FromValue<Ctx> for i32 {
     fn from_value(_ctx: &mut Ctx, value: &Value) -> Option<Self> {
@@ -77,5 +73,5 @@ macro_rules! from_values {
 }
 
 from_values!(T1);
-from_values!(T1,T2);
-from_values!(T1,T2,T3);
+from_values!(T1, T2);
+from_values!(T1, T2, T3);

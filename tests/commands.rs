@@ -1,7 +1,7 @@
+use lieutenant::automaton::{Find, DFA, NFA};
 use lieutenant::command::*;
 use lieutenant::graph::*;
-use lieutenant::automaton::{Find, NFA, DFA};
-use serde::{Deserialize};
+use serde::Deserialize;
 use std::time;
 
 #[derive(Deserialize)]
@@ -17,7 +17,7 @@ struct CommandNode {
     executable: bool,
     redirects: Vec<String>,
     children: Vec<CommandNode>,
-    parser: Option<Parser>
+    parser: Option<Parser>,
 }
 
 fn f32_min() -> f32 {
@@ -57,14 +57,14 @@ struct DoubleModifier {
     #[serde(default = "f64_min")]
     min: f64,
     #[serde(default = "f64_max")]
-    max: f64,   
+    max: f64,
 }
 
 impl Default for DoubleModifier {
     fn default() -> Self {
         Self {
             min: f64_min(),
-            max: f64_max(), 
+            max: f64_max(),
         }
     }
 }
@@ -81,7 +81,7 @@ impl Default for IntegerModifier {
     fn default() -> Self {
         Self {
             min: i32_min(),
-            max: i32_max(), 
+            max: i32_max(),
         }
     }
 }
@@ -97,7 +97,7 @@ impl Default for FloatModifier {
     fn default() -> Self {
         Self {
             min: f32_min(),
-            max: f32_max(), 
+            max: f32_max(),
         }
     }
 }
@@ -148,10 +148,11 @@ struct ScoreHolderModifier {
 
 impl Default for ScoreHolderModifier {
     fn default() -> Self {
-        Self { amount: default_score_holder_amount() }
+        Self {
+            amount: default_score_holder_amount(),
+        }
     }
 }
-
 
 #[derive(Deserialize)]
 #[serde(tag = "parser", content = "modifier")]
@@ -244,35 +245,35 @@ enum Parser {
 
 fn parser(parser: Parser) -> ParserKind {
     match parser {
-        Parser::Bool => { ParserKind::Bool },
-        Parser::Float(range) => { 
+        Parser::Bool => ParserKind::Bool,
+        Parser::Float(range) => {
             let range = range.unwrap_or_default();
             ParserKind::Float(range.min..=range.max)
-        },
-        Parser::Double(range) => { 
+        }
+        Parser::Double(range) => {
             let range = range.unwrap_or_default();
             ParserKind::Double(range.min..=range.max)
-        },
-        Parser::Integer(range) => { 
+        }
+        Parser::Integer(range) => {
             let range = range.unwrap_or_default();
             ParserKind::Integer(range.min..=range.max)
-        },
-        Parser::Angle => { ParserKind::Double(0.0..=360.0) },
-        Parser::BlockPos => { ParserKind::BlockPos },
-        Parser::BlockPredicate => { ParserKind::BlockPredicate },
-        Parser::BlockState => { ParserKind::BlockState },
-        Parser::Color => { ParserKind::Color },
-        Parser::ColumnPos => { ParserKind::ColumnPos },
-        Parser::Component => { todo!() },
-        Parser::Dimension => { ParserKind::Dimension },
-        Parser::EntityAnchor => { ParserKind::EntityAnchor },
-        Parser::EntitySummon => { ParserKind::EntitySummon },
-        Parser::Entity(modifier) => { 
+        }
+        Parser::Angle => ParserKind::Double(0.0..=360.0),
+        Parser::BlockPos => ParserKind::BlockPos,
+        Parser::BlockPredicate => ParserKind::BlockPredicate,
+        Parser::BlockState => ParserKind::BlockState,
+        Parser::Color => ParserKind::Color,
+        Parser::ColumnPos => ParserKind::ColumnPos,
+        Parser::Component => todo!(),
+        Parser::Dimension => ParserKind::Dimension,
+        Parser::EntityAnchor => ParserKind::EntityAnchor,
+        Parser::EntitySummon => ParserKind::EntitySummon,
+        Parser::Entity(modifier) => {
             let modifier = modifier.unwrap_or_default();
             let only_one = match modifier.amount.as_ref() {
                 "single" => true,
                 "multiple" => false,
-                _ => unreachable!()
+                _ => unreachable!(),
             };
             let player_required = match modifier.kind.as_ref() {
                 "entities" => false,
@@ -283,7 +284,7 @@ fn parser(parser: Parser) -> ParserKind {
                 only_one,
                 player_required,
             }
-        },
+        }
         Parser::String(modifier) => {
             let modifier = modifier.unwrap_or_default();
             let property = match modifier.kind.as_ref() {
@@ -293,25 +294,25 @@ fn parser(parser: Parser) -> ParserKind {
                 _ => unreachable!(),
             };
             ParserKind::String(property)
-        },
-        Parser::Function => { ParserKind::Function },
-        Parser::GameProfile => { ParserKind::GameProfile },
-        Parser::IntRange => { ParserKind::IntRange },
-        Parser::ItemEnchantment => { ParserKind::ItemEnchantment },
-        Parser::ItemPredicate => { ParserKind::ItemPredicate },
-        Parser::ItemSlot => { ParserKind::ItemSlot },
-        Parser::ItemStack => { ParserKind::ItemStack },
-        Parser::Message => { ParserKind::Message },
-        Parser::MobEffect => { ParserKind::MobEffect },
-        Parser::NbtCompoundTag => { ParserKind::NbtCompoundTag },
-        Parser::NbtPath => { ParserKind::NbtPath },
-        Parser::NbtTag => { ParserKind::NbtTag },
-        Parser::Objective => { ParserKind::Objective },
-        Parser::ObjectiveCriteria => { ParserKind::ObjectiveCritera },
-        Parser::Operation => { ParserKind::Operation },
-        Parser::Particle => { ParserKind::Particle },
-        Parser::ResourceLocation => { ParserKind::ResourceLocation },
-        Parser::Rotation => { ParserKind::Rotation },
+        }
+        Parser::Function => ParserKind::Function,
+        Parser::GameProfile => ParserKind::GameProfile,
+        Parser::IntRange => ParserKind::IntRange,
+        Parser::ItemEnchantment => ParserKind::ItemEnchantment,
+        Parser::ItemPredicate => ParserKind::ItemPredicate,
+        Parser::ItemSlot => ParserKind::ItemSlot,
+        Parser::ItemStack => ParserKind::ItemStack,
+        Parser::Message => ParserKind::Message,
+        Parser::MobEffect => ParserKind::MobEffect,
+        Parser::NbtCompoundTag => ParserKind::NbtCompoundTag,
+        Parser::NbtPath => ParserKind::NbtPath,
+        Parser::NbtTag => ParserKind::NbtTag,
+        Parser::Objective => ParserKind::Objective,
+        Parser::ObjectiveCriteria => ParserKind::ObjectiveCritera,
+        Parser::Operation => ParserKind::Operation,
+        Parser::Particle => ParserKind::Particle,
+        Parser::ResourceLocation => ParserKind::ResourceLocation,
+        Parser::Rotation => ParserKind::Rotation,
         Parser::ScoreHolder(modifier) => {
             let modifier = modifier.unwrap_or_default();
             let multiple_allowed = match modifier.amount.as_ref() {
@@ -320,14 +321,14 @@ fn parser(parser: Parser) -> ParserKind {
                 _ => unreachable!(),
             };
             ParserKind::ScoreHolder { multiple_allowed }
-        },
-        Parser::ScoreboardSlot => { ParserKind::ScoreboardSlot },
-        Parser::Swizzle => { ParserKind::Swizzle },
-        Parser::Team => { ParserKind::Team },
-        Parser::Time => { ParserKind::Time },
-        Parser::Uuid => {ParserKind::Uuid },
-        Parser::Vec2 => { ParserKind::Vec2 },
-        Parser::Vec3 => { ParserKind::Vec3 },
+        }
+        Parser::ScoreboardSlot => ParserKind::ScoreboardSlot,
+        Parser::Swizzle => ParserKind::Swizzle,
+        Parser::Team => ParserKind::Team,
+        Parser::Time => ParserKind::Time,
+        Parser::Uuid => ParserKind::Uuid,
+        Parser::Vec2 => ParserKind::Vec2,
+        Parser::Vec3 => ParserKind::Vec3,
     }
 }
 
@@ -336,7 +337,9 @@ fn create_command(root: &mut RootNode<()>, parent: Option<NodeId>, command_node:
         "root" => unimplemented!("only on root"),
         "literal" => NodeKind::Literal(command_node.name.clone()),
         "argument" => match command_node.name {
-            _ => NodeKind::Argument { parser: ParserKind::Integer(0..=i32::MAX) },
+            _ => NodeKind::Argument {
+                parser: ParserKind::Integer(0..=i32::MAX),
+            },
         },
         _ => unimplemented!("should not exist"),
     };
@@ -368,13 +371,19 @@ fn all_commands() -> Result<(), Box<dyn std::error::Error>> {
 
     let start = time::Instant::now();
     let nfa = NFA::from(graph_root);
-    println!("nfa took: {}ms", time::Instant::now().duration_since(start).as_millis());
+    println!(
+        "nfa took: {}ms",
+        time::Instant::now().duration_since(start).as_millis()
+    );
 
     // println!("{:?}", nfa);
 
     let start = time::Instant::now();
     let dfa = DFA::from(nfa);
-    println!("dfa took: {}ms", time::Instant::now().duration_since(start).as_millis());
+    println!(
+        "dfa took: {}ms",
+        time::Instant::now().duration_since(start).as_millis()
+    );
 
     let dfa = dfa.minimize();
 
@@ -384,6 +393,6 @@ fn all_commands() -> Result<(), Box<dyn std::error::Error>> {
     println!("size: {}", size);
 
     assert!(dfa.find("tp 10 10 10").is_ok());
-    
+
     Ok(())
 }

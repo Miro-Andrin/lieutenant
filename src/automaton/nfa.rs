@@ -2,8 +2,8 @@ use super::*;
 
 use crate::graph::{Node, RootNode};
 use indexmap::IndexSet;
-use std::collections::BTreeSet;
 use regex_to_nfa::regex_to_nfa;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -92,7 +92,7 @@ impl Index<(StateId, u8)> for NFA {
 
 impl NFA {
     /// Matches the empty string
-    pub (crate) fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Self {
             start: StateId::of(0),
             states: vec![State::empty()],
@@ -303,10 +303,8 @@ impl NFA {
     }
 }
 
-
 impl From<Range<u8>> for NFA {
-    fn from(range : Range<u8>) -> Self {
-
+    fn from(range: Range<u8>) -> Self {
         let mut buffer = [0; 4];
         let mut classes = vec![ByteClass::empty(); 4];
         for c in range {
@@ -319,7 +317,7 @@ impl From<Range<u8>> for NFA {
                 }
             }
         }
-        
+
         let mut nfa = NFA::empty();
         let mut id = nfa.start;
 
@@ -342,96 +340,8 @@ impl From<Range<u8>> for NFA {
 
         nfa.end = id;
         nfa
-        
     }
 }
-
-
-
-//impl From<Range<char>> for NFA {
-//    fn from(range : Range<char>) -> Self {
-//        todo!()
-//    }
-// }
-// TODO remove
-// impl<'a> From<&Pattern<'a>> for NFA {
-//     fn from(pattern: &Pattern) -> Self {
-//         match pattern {
-//             Pattern::Literal(lit) => {
-//                 let mut nfa = NFA::empty();
-//                 let end = lit.bytes().fold(nfa.start, |id, c| {
-//                     let next = nfa.push_state();
-
-//                     let byte_class = ByteClass::from(c);
-//                     nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
-
-//                     next
-//                 });
-//                 nfa.end = end;
-//                 nfa
-//             }
-//             Pattern::Many(pattern) => NFA::from(*pattern).repeat(),
-//             Pattern::Concat(patterns) => patterns.iter().fold(NFA::empty(), |nfa, pattern| {
-//                 nfa.concat(&NFA::from(pattern.as_ref()))
-//             }),
-//             Pattern::Alt(patterns) => {
-//                 let mut patterns = patterns.iter();
-//                 if let Some(first) = patterns.next() {
-//                     patterns.fold(NFA::from(first.as_ref()), |nfa, pattern| {
-//                         nfa.union(&NFA::from(pattern.as_ref()))
-//                     })
-//                 } else {
-//                     NFA::empty()
-//                 }
-//             }
-//             Pattern::OneOf(one_of) => {
-//                 let mut buffer = [0; 4];
-//                 let mut classes = vec![ByteClass::empty(); 4];
-//                 for c in one_of.chars() {
-//                     let bytes = c.encode_utf8(&mut buffer);
-//                     for (i, b) in bytes.bytes().enumerate() {
-//                         if i + 1 < c.len_utf8() {
-//                             classes[i][b] = 2;
-//                         } else {
-//                             classes[i][b] = 1;
-//                         }
-//                     }
-//                 }
-//                 let mut nfa = NFA::empty();
-//                 let mut id = nfa.start;
-
-//                 let classes: Vec<_> = classes
-//                     .into_iter()
-//                     .take_while(|class| !class.is_empty())
-//                     .collect();
-
-//                 let end = StateId::of(classes.len() as u32);
-
-//                 for class in classes {
-//                     let next_id = nfa.push_state();
-//                     if next_id == end {
-//                         nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
-//                     } else {
-//                         nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
-//                     }
-//                     id = next_id;
-//                 }
-//                 nfa.end = id;
-//                 nfa
-//             }
-//             Pattern::Optional(pattern) => {
-//                 let nfa = NFA::from(*pattern);
-//                 nfa.optional()
-//             }
-//             Pattern::Not(pattern) => NFA::from(*pattern).not(),
-//             Pattern::OneOrMore(pattern) => {
-//                 let nfa = NFA::from(*pattern);
-//                 let nfa = nfa.concat(&NFA::from(*pattern).repeat());
-//                 nfa
-//             }
-//         }
-//     }
-// }
 
 // TODO: move
 fn from_root<Ctx>(root: &RootNode<Ctx>, node: &Node<Ctx>) -> NFA {

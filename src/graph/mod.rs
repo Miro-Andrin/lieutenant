@@ -1,12 +1,12 @@
 mod parser_kind;
 
-use crate::{command::Command};
+use crate::automaton::NFA;
+use crate::command::Command;
 use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
-use std::ops::{Index, IndexMut};
-use crate::automaton::{NFA};
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
@@ -47,7 +47,7 @@ impl<Ctx> Node<Ctx> {
         Self {
             kind,
             execute: None,
-            children: vec![]
+            children: vec![],
         }
     }
 }
@@ -166,14 +166,7 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
 impl From<&NodeKind> for NFA {
     fn from(kind: &NodeKind) -> Self {
         match kind {
-            
-         
-
-            NodeKind::Literal(lit) => {
-
-                NFA::literal(lit)
-
-            }
+            NodeKind::Literal(lit) => NFA::literal(lit),
             NodeKind::Argument { parser, .. } => NFA::from(parser),
         }
     }

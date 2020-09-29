@@ -3,7 +3,6 @@
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
-
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> Self {
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
@@ -11,11 +10,9 @@ impl From<NFA> for DFA {
         let mut dfa = DFA::nothing();
 
         let start_ids = nfa.epsilon_closure(iter::once(nfa.start).collect());
-        
 
         // Create the start state of the DFA by taking the epsilon_closure of the start state of the NFA.
-        let mut stack: Vec<BTreeSet<StateId>> =
-            vec![start_ids.clone()];
+        let mut stack: Vec<BTreeSet<StateId>> = vec![start_ids.clone()];
 
         let dfa_id = dfa.push_state();
         nfa_to_dfa.insert(start_ids.clone(), dfa_id);
@@ -24,7 +21,7 @@ impl From<NFA> for DFA {
             let mut transitions = Vec::with_capacity(256);
             let is_end = nfa_ids.iter().any(|id| *id == nfa.end);
             let dfa_id = nfa_to_dfa[&nfa_ids];
-            
+
             // For each possible input symbol
             for b in 0..=255 as u8 {
                 // Apply move to the newly-created state and the input symbol; this will return a set of states.
@@ -48,7 +45,7 @@ impl From<NFA> for DFA {
                     stack.push(move_state_e);
                     dfa_e_id
                 };
-                
+
                 transitions.push(Some(dfa_e_id));
             }
 
@@ -59,7 +56,7 @@ impl From<NFA> for DFA {
         }
 
         dfa.ends.dedup();
-        
+
         dfa
     }
 }

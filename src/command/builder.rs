@@ -1,13 +1,13 @@
 use super::{command, NodeDescriptor};
 use crate::generic::{Combine, Func, HList, Tuple};
-use crate::graph::{RootNode, Node, NodeKind};
+use crate::graph::{Node, NodeKind, RootNode};
 use crate::values::FromValues;
 use std::marker::PhantomData;
 
 pub struct Literal<B> {
     builder: B,
     value: String,
-    aliases: Vec<String>
+    aliases: Vec<String>,
 }
 
 impl<B> CommandBuilder for Literal<B>
@@ -25,7 +25,7 @@ where
 
 impl<B> Literal<B>
 where
-    B: CommandBuilder
+    B: CommandBuilder,
 {
     /// Adds an additional alias for this literal
     pub fn alias(mut self, alias: String) -> Self {
@@ -92,7 +92,7 @@ pub trait CommandBuilder {
             .into_iter()
             .map(|kind| Node::new(kind))
             .collect::<Vec<_>>();
-        
+
         let command = command(callback);
 
         if let Some(node) = nodes.last_mut() {
@@ -105,7 +105,6 @@ pub trait CommandBuilder {
 
         root
     }
-
 
     /// Adds an case insensitive literal ie. `tp` or `ban`.
     fn literal(self, lit: &str) -> Literal<Self>

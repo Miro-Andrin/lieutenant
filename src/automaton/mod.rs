@@ -8,7 +8,6 @@ use std::ops::{Index, IndexMut};
 pub mod dfa;
 pub mod nfa;
 pub mod nfa_to_dfa;
-pub mod pattern;
 pub mod regex_to_nfa;
 
 pub use dfa::DFA;
@@ -42,7 +41,7 @@ impl ByteClass {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-         self.0.iter().all(|t| *t == 0)
+        self.0.iter().all(|t| *t == 0)
     }
 
     pub(crate) fn full() -> Self {
@@ -50,16 +49,14 @@ impl ByteClass {
     }
 
     pub(crate) fn ones_except_last_byte() -> Self {
-
-        let mut v = vec![0;256];
+        let mut v = vec![0; 256];
         for i in 128..=255u8 {
             v[i as usize] = 1;
         }
-        
+
         ByteClass(v)
     }
 }
-
 
 impl From<u8> for ByteClass {
     fn from(value: u8) -> Self {
@@ -94,7 +91,7 @@ pub trait Find<T> {
 }
 
 #[cfg(test)]
-mod tests { 
+mod tests {
 
     use regex_to_nfa::regex_to_nfa;
 

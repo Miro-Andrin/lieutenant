@@ -1,6 +1,6 @@
 mod parser_kind;
 
-use crate::command::Command;
+use crate::{command::Command};
 use crate::error::Result;
 pub use parser_kind::*;
 use slab::Slab;
@@ -165,9 +165,15 @@ impl<Ctx> GraphMerge for RootNode<Ctx> {
 
 impl From<&NodeKind> for NFA {
     fn from(kind: &NodeKind) -> Self {
-        use crate::automaton::pattern::*;
         match kind {
-            NodeKind::Literal(lit) => NFA::from(&literal(lit.as_ref())),
+            
+         
+
+            NodeKind::Literal(lit) => {
+
+                NFA::literal(lit)
+
+            }
             NodeKind::Argument { parser, .. } => NFA::from(parser),
         }
     }

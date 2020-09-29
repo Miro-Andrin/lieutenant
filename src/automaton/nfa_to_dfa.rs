@@ -3,6 +3,7 @@
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> Self {
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
@@ -66,22 +67,15 @@ impl From<NFA> for DFA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::pattern::*;
-
-    #[test]
-    fn abc_repeat() {
-        let nfa_abc_repeat = NFA::from(&many(&literal("abc")));
-
-        let dfa_abc_repeat = DFA::from(nfa_abc_repeat);
-    }
+    use regex_to_nfa::regex_to_nfa;
 
     #[test]
     fn abc_u_abc() {
-        let nfa_abc = NFA::from(&literal("abc"));
-        let nfa_def = NFA::from(&literal("def"));
+        let nfa_abc = regex_to_nfa("abc").unwrap();
+        let nfa_def = regex_to_nfa("def").unwrap();
         let nfa_abc_u_abc = nfa_abc.union(&nfa_def);
 
-        let nfa = NFA::from(&literal("a")).concat(&nfa_abc_u_abc);
+        let nfa = regex_to_nfa("a").unwrap().concat(&nfa_abc_u_abc);
 
         println!("{:?}", nfa);
 

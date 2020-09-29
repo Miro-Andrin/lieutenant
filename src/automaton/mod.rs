@@ -1,4 +1,3 @@
-pub use pattern::{Pattern};
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
@@ -6,10 +5,11 @@ use std::mem;
 use std::ops::Range;
 use std::ops::{Index, IndexMut};
 
-pub mod pattern;
-pub mod nfa_to_dfa;
 pub mod dfa;
 pub mod nfa;
+pub mod nfa_to_dfa;
+pub mod pattern;
+pub mod regex_to_nfa;
 
 pub use dfa::DFA;
 pub use nfa::NFA;
@@ -31,6 +31,8 @@ impl StateId {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct ByteClassId(u16);
 
+// The standard libray is about to implement a subset of const generics, when this lands
+// we could change the Vec<u8>  to [u8: 256] and get Eq, Ord and Hash.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct ByteClass(pub(crate) Vec<u8>);
 
@@ -40,51 +42,30 @@ impl ByteClass {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.0.iter().all(|t| *t == 0)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct ByteSet([bool; 256]);
-
-impl ByteSet {
-    fn empty() -> Self {
-        Self([false; 256])
+         self.0.iter().all(|t| *t == 0)
     }
 
-    pub fn add_range(&mut self, range: Range<u8>) {
-        let min = range.start;
-        let max = range.end;
-        self.0[min as usize] = true;
-        if max < 255 {
-            self.0[max as usize + 1] = true;
+    pub(crate) fn full() -> Self {
+        ByteClass(vec![1; 256])
+    }
+
+    pub(crate) fn ones_except_last_byte() -> Self {
+
+        let v = vec![0;256];
+        for i in 128..=256u8 {
+            v[i as usize] = 1;
         }
+        
+        ByteClass(v)
     }
 }
 
-impl From<ByteSet> for ByteClass {
-    fn from(set: ByteSet) -> Self {
-        Self(
-            set.0
-                .to_vec()
-                .into_iter()
-                .scan(0u8, |acc, x| Some(*acc + (x as u8)))
-                .collect(),
-        )
-    }
-}
 
-impl From<Range<u8>> for ByteSet {
-    fn from(range: Range<u8>) -> Self {
-        let mut set = ByteSet::empty();
-        set.add_range(range);
-        set
-    }
-}
-
-impl From<Range<u8>> for ByteClass {
-    fn from(range: Range<u8>) -> Self {
-        Self::from(ByteSet::from(range))
+impl From<u8> for ByteClass {
+    fn from(value: u8) -> Self {
+        let mut values = [0u8; 256];
+        values[value as usize] = 1;
+        return Self(values.to_vec());
     }
 }
 
@@ -113,34 +94,62 @@ pub trait Find<T> {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests { 
+
+    use regex_to_nfa::regex_to_nfa;
+
     use super::*;
-    use super::pattern::*;
+
+    #[test]
+    fn byteclass_from_u8() {
+        let bc = ByteClass::from(255u8);
+        assert!(bc.0.len() == 256);
+        assert!(bc.0[255] == 1);
+
+        let bc = ByteClass::from(0u8);
+        assert!(bc.0.len() == 256);
+        assert!(bc.0[0] == 1);
+    }
 
     #[test]
     fn abc() {
-        let nfa = NFA::from(&literal("abc"));
+        let nfa = regex_to_nfa("abc").unwrap();
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
         assert!(dfa.find("abca").is_err());
+        assert!(dfa.find("abd").is_err());
+        assert!(dfa.find("add").is_err());
+        assert!(dfa.find("ab").is_err());
+        assert!(dfa.find("aab").is_err());
+        assert!(dfa.find("ddd").is_err());
+
+        let nfa = regex_to_nfa("aa").unwrap();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("aaa").is_err());
+        assert!(dfa.find("aa").is_ok());
     }
 
     #[test]
     fn abc_repeat() {
-        let nfa = NFA::from(&many(&literal("abc")));
+        let nfa = regex_to_nfa("(abc)*").unwrap();
         let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_ok());
         assert!(dfa.find("abc").is_ok());
         assert!(dfa.find("abcabc").is_ok());
         assert!(dfa.find("abca").is_err());
+        assert!(dfa.find("abcab").is_err());
+        assert!(dfa.find("abcabd").is_err());
     }
 
     #[test]
     fn minimize() {
-        let nfa = NFA::from(&many(&literal("abc")));
+        let nfa = regex_to_nfa("(abc)*").unwrap();
         let dfa = DFA::from(nfa);
-        let minimized_dfa = dfa.minimize();
+        let _minimized_dfa = dfa.minimize();
     }
 }

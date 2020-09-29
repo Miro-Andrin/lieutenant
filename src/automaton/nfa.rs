@@ -2,8 +2,8 @@ use super::*;
 
 use crate::graph::{Node, RootNode};
 use indexmap::IndexSet;
-use std::borrow::Cow;
 use std::collections::BTreeSet;
+use regex_to_nfa::regex_to_nfa;
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -28,6 +28,7 @@ impl IndexMut<u8> for State {
 impl State {
     fn empty() -> Self {
         Self {
+            ///
             table: vec![vec![]],
             class: ByteClassId(0),
             epsilons: vec![],
@@ -43,15 +44,17 @@ impl State {
 pub struct NFA {
     // Reduce to a single init state, namely the root
     pub(crate) start: StateId,
-    pub(crate) states: Vec<State>,
     pub(crate) end: StateId,
-    pub(crate) classes: IndexSet<ByteClass>,
+    /// Represents the nodes in the NFA
+    pub(crate) states: Vec<State>,
+    /// Sort of represents the edges in the NFA.
+    pub(crate) translations: IndexSet<ByteClass>,
 }
 
 impl Index<ByteClassId> for NFA {
     type Output = ByteClass;
     fn index(&self, ByteClassId(index): ByteClassId) -> &Self::Output {
-        &self.classes[index as usize]
+        &self.translations[index as usize]
     }
 }
 
@@ -89,13 +92,46 @@ impl Index<(StateId, u8)> for NFA {
 
 impl NFA {
     /// Matches the empty string
-    fn empty() -> Self {
+    pub (crate) fn empty() -> Self {
         Self {
             start: StateId::of(0),
             states: vec![State::empty()],
-            classes: iter::once(ByteClass::empty()).collect(),
+            translations: iter::once(ByteClass::empty()).collect(),
             end: StateId::of(0),
         }
+    }
+
+    pub(crate) fn literal(lit: &str) -> Self {
+        let mut nfa = NFA::empty();
+        let end = lit.bytes().fold(nfa.start, |id, c| {
+            let next = nfa.push_state();
+            let byte_class = ByteClass::from(c);
+            nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
+            next
+        });
+        nfa.end = end;
+        nfa
+    }
+
+    pub(crate) fn single_u8() -> Self {
+        let mut nfa = NFA::empty();
+        nfa.end = nfa.push_state();
+        let new_byteclass = nfa.push_class(ByteClass::full());
+        nfa.set_transitions(
+            nfa.start,
+            ByteClass::full(),
+            vec![vec![], vec![nfa.end], vec![]],
+        );
+        nfa
+    }
+
+    
+    pub(crate) fn dot_utf_8() -> Self {
+        // This method creates 4 - nodes. 
+        
+        
+        
+
     }
 
     fn push_state(&mut self) -> StateId {
@@ -249,11 +285,11 @@ impl NFA {
     }
 
     pub(crate) fn push_class(&mut self, class: ByteClass) -> ByteClassId {
-        if let Some(id) = self.classes.get_index_of(&class) {
+        if let Some(id) = self.translations.get_index_of(&class) {
             ByteClassId(id as u16)
         } else {
-            let id = ByteClassId(self.classes.len() as u16);
-            self.classes.insert(class);
+            let id = ByteClassId(self.translations.len() as u16);
+            self.translations.insert(class);
             id
         }
     }
@@ -276,87 +312,135 @@ impl NFA {
     }
 }
 
-// TODO: move
-impl<'a> From<&Pattern<'a>> for NFA {
-    fn from(pattern: &Pattern) -> Self {
-        match pattern {
-            Pattern::Literal(lit) => {
-                let mut nfa = NFA::empty();
-                let end = lit.bytes().fold(nfa.start, |id, c| {
-                    let next = nfa.push_state();
 
-                    let byte_class = ByteClass::from(c..c);
-                    nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
+impl From<Range<u8>> for NFA {
+    fn from(range : Range<u8>) -> Self {
 
-                    next
-                });
-                nfa.end = end;
-                nfa
-            }
-            Pattern::Many(pattern) => NFA::from(*pattern).repeat(),
-            Pattern::Concat(patterns) => patterns.iter().fold(NFA::empty(), |nfa, pattern| {
-                nfa.concat(&NFA::from(pattern.as_ref()))
-            }),
-            Pattern::Alt(patterns) => {
-                let mut patterns = patterns.iter();
-                if let Some(first) = patterns.next() {
-                    patterns.fold(NFA::from(first.as_ref()), |nfa, pattern| {
-                        nfa.union(&NFA::from(pattern.as_ref()))
-                    })
+        let mut buffer = [0; 4];
+        let mut classes = vec![ByteClass::empty(); 4];
+        for c in range {
+            let bytes = char::from(c).encode_utf8(&mut buffer);
+            for (i, b) in bytes.bytes().enumerate() {
+                if i + 1 < char::from(c).len_utf8() {
+                    classes[i][b] = 2;
                 } else {
-                    NFA::empty()
+                    classes[i][b] = 1;
                 }
-            }
-            Pattern::OneOf(one_of) => {
-                let mut buffer = [0; 4];
-                let mut classes = vec![ByteClass::empty(); 4];
-                for c in one_of.chars() {
-                    let bytes = c.encode_utf8(&mut buffer);
-                    for (i, b) in bytes.bytes().enumerate() {
-                        if i + 1 < c.len_utf8() {
-                            classes[i][b] = 2;
-                        } else {
-                            classes[i][b] = 1;
-                        }
-                    }
-                }
-                let mut nfa = NFA::empty();
-                let mut id = nfa.start;
-
-                let classes: Vec<_> = classes
-                    .into_iter()
-                    .take_while(|class| !class.is_empty())
-                    .collect();
-
-                let end = StateId::of(classes.len() as u32);
-
-                for class in classes {
-                    let next_id = nfa.push_state();
-                    if next_id == end {
-                        nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
-                    } else {
-                        nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
-                    }
-                    id = next_id;
-                }
-
-                nfa.end = id;
-
-                nfa
-            }
-            Pattern::Optional(pattern) => {
-                let nfa = NFA::from(*pattern);
-                nfa.optional()
-            }
-            Pattern::Not(pattern) => NFA::from(*pattern).not(),
-            Pattern::OneOrMore(pattern) => {
-                let nfa = NFA::from(*pattern);
-                let nfa = nfa.concat(&NFA::from(*pattern).repeat());
-                nfa
             }
         }
+        
+        let mut nfa = NFA::empty();
+        let mut id = nfa.start;
+
+        let classes: Vec<_> = classes
+            .into_iter()
+            .take_while(|class| !class.is_empty())
+            .collect();
+
+        let end = StateId::of(classes.len() as u32);
+
+        for class in classes {
+            let next_id = nfa.push_state();
+            if next_id == end {
+                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
+            } else {
+                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
+            }
+            id = next_id;
+        }
+
+        nfa.end = id;
+        nfa
+        
     }
 }
+
+
+
+//impl From<Range<char>> for NFA {
+//    fn from(range : Range<char>) -> Self {
+//        todo!()
+//    }
+// }
+// TODO remove
+// impl<'a> From<&Pattern<'a>> for NFA {
+//     fn from(pattern: &Pattern) -> Self {
+//         match pattern {
+//             Pattern::Literal(lit) => {
+//                 let mut nfa = NFA::empty();
+//                 let end = lit.bytes().fold(nfa.start, |id, c| {
+//                     let next = nfa.push_state();
+
+//                     let byte_class = ByteClass::from(c);
+//                     nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
+
+//                     next
+//                 });
+//                 nfa.end = end;
+//                 nfa
+//             }
+//             Pattern::Many(pattern) => NFA::from(*pattern).repeat(),
+//             Pattern::Concat(patterns) => patterns.iter().fold(NFA::empty(), |nfa, pattern| {
+//                 nfa.concat(&NFA::from(pattern.as_ref()))
+//             }),
+//             Pattern::Alt(patterns) => {
+//                 let mut patterns = patterns.iter();
+//                 if let Some(first) = patterns.next() {
+//                     patterns.fold(NFA::from(first.as_ref()), |nfa, pattern| {
+//                         nfa.union(&NFA::from(pattern.as_ref()))
+//                     })
+//                 } else {
+//                     NFA::empty()
+//                 }
+//             }
+//             Pattern::OneOf(one_of) => {
+//                 let mut buffer = [0; 4];
+//                 let mut classes = vec![ByteClass::empty(); 4];
+//                 for c in one_of.chars() {
+//                     let bytes = c.encode_utf8(&mut buffer);
+//                     for (i, b) in bytes.bytes().enumerate() {
+//                         if i + 1 < c.len_utf8() {
+//                             classes[i][b] = 2;
+//                         } else {
+//                             classes[i][b] = 1;
+//                         }
+//                     }
+//                 }
+//                 let mut nfa = NFA::empty();
+//                 let mut id = nfa.start;
+
+//                 let classes: Vec<_> = classes
+//                     .into_iter()
+//                     .take_while(|class| !class.is_empty())
+//                     .collect();
+
+//                 let end = StateId::of(classes.len() as u32);
+
+//                 for class in classes {
+//                     let next_id = nfa.push_state();
+//                     if next_id == end {
+//                         nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
+//                     } else {
+//                         nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
+//                     }
+//                     id = next_id;
+//                 }
+//                 nfa.end = id;
+//                 nfa
+//             }
+//             Pattern::Optional(pattern) => {
+//                 let nfa = NFA::from(*pattern);
+//                 nfa.optional()
+//             }
+//             Pattern::Not(pattern) => NFA::from(*pattern).not(),
+//             Pattern::OneOrMore(pattern) => {
+//                 let nfa = NFA::from(*pattern);
+//                 let nfa = nfa.concat(&NFA::from(*pattern).repeat());
+//                 nfa
+//             }
+//         }
+//     }
+// }
 
 // TODO: move
 fn from_root<Ctx>(root: &RootNode<Ctx>, node: &Node<Ctx>) -> NFA {
@@ -368,14 +452,14 @@ fn from_root<Ctx>(root: &RootNode<Ctx>, node: &Node<Ctx>) -> NFA {
         .map(|node| from_root(root, &root[*node]));
 
     if let Some(first) = children.next() {
-        nfa = nfa.concat(&NFA::from(Pattern::SPACE_MANY_ONE));
+        nfa = nfa.concat(&regex_to_nfa("\\s\\s*").unwrap());
         nfa = nfa.concat(&children.fold(first, |acc, nfa| acc.union(&nfa)));
     }
 
     nfa
 }
 
-// TODO: move
+//TODO: move
 impl<Ctx> From<RootNode<Ctx>> for NFA {
     fn from(root: RootNode<Ctx>) -> Self {
         let mut nfa = NFA::empty();
@@ -393,169 +477,223 @@ impl<Ctx> From<RootNode<Ctx>> for NFA {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regex_to_nfa::regex_to_nfa;
+    #[test]
+    fn abc() {
+        let nfa = regex_to_nfa("abc").unwrap();
+        let dfa = DFA::from(nfa);
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("abc").is_ok());
+    }
 
-//     #[test]
-//     fn abc() {
-//         let nfa_abc = NFA::from(&pattern!("abc"));
+    #[test]
+    fn abc_repeat() {
+        let nfa = regex_to_nfa("(abc)*").unwrap();
+        let dfa = DFA::from(nfa);
 
-//         assert!(!nfa_abc.find(""));
-//         assert!(nfa_abc.find("abc"));
-//         assert!(!nfa_abc.find("abcabc"));
-//         assert!(!nfa_abc.find("a"));
-//     }
+        assert!(dfa.find("").is_ok());
+        assert!(dfa.find("abc").is_ok());
+        assert!(dfa.find("abcaabc").is_err());
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("abd").is_err());
+        assert!(dfa.find("abcd").is_err());
+        assert!(dfa.find("abcabc").is_ok());
+        assert!(dfa.find("abcabcabc").is_ok());
+    }
 
-//     #[test]
-//     fn abc_abc() {
-//         let nfa_abc_abc = NFA::from(&pattern!("abc" "abc"));
+    #[test]
+    fn one_of_abc() {
+        let nfa = regex_to_nfa("(aa|bb)").unwrap();
+        let dfa = DFA::from(nfa);
 
-//         assert!(!nfa_abc_abc.find(""));
-//         assert!(!nfa_abc_abc.find("a"));
-//         assert!(!nfa_abc_abc.find("abc"));
-//         assert!(nfa_abc_abc.find("abcabc"));
-//         assert!(!nfa_abc_abc.find("abcabcabc"));
-//     }
+        assert!(dfa.find("aa").is_ok());
+        assert!(dfa.find("bb").is_ok());
+        assert!(dfa.find("aabb").is_err());
+        assert!(dfa.find("aa|bb").is_err());
+        assert!(dfa.find("aabb").is_err());
+    }
 
-//     #[test]
-//     fn abc_repeat() {
-//         let nfa_abc_repeat = NFA::from(&pattern!("abc"*));
+    #[test]
+    fn literal_star() {
+        let nfa = regex_to_nfa("\\*").unwrap();
+        let dfa = DFA::from(nfa);
 
-//         assert!(nfa_abc_repeat.find(""));
-//         assert!(nfa_abc_repeat.find("abc"));
-//         assert!(nfa_abc_repeat.find("abcabc"));
-//         assert!(!nfa_abc_repeat.find("a"));
-//         assert!(!nfa_abc_repeat.find("b"));
-//     }
+        assert!(dfa.find("*").is_ok());
+        assert!(dfa.find("a").is_err());
+    }
 
-//     #[test]
-//     fn abc_abc_repeat() {
-//         let nfa_abc = NFA::from(&pattern!("abc"));
+    #[test]
+    fn dot() {
+        let nfa = regex_to_nfa(".").unwrap();
+        let dfa = DFA::from(nfa);
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("").is_ok());
+    }
 
-//         let nfa_abc_abc = nfa_abc.clone().concat(&nfa_abc);
-//         let nfa_abc_abc_repeat = nfa_abc_abc.repeat();
+    //     #[test]
+    //     fn abc() {
+    //         let nfa_abc = NFA::from(&pattern!("abc"));
 
-//         assert!(nfa_abc_abc_repeat.find(""));
-//         assert!(!nfa_abc_abc_repeat.find("abc"));
-//         assert!(nfa_abc_abc_repeat.find("abcabc"));
-//         assert!(!nfa_abc_abc_repeat.find("abcabcabc"));
-//     }
+    //         assert!(!nfa_abc.find(""));
+    //         assert!(nfa_abc.find("abc"));
+    //         assert!(!nfa_abc.find("abcabc"));
+    //         assert!(!nfa_abc.find("a"));
+    //     }
 
-//     #[test]
-//     fn abc_u_def() {
-//         let nfa_abc = NFA::from(&pattern!("abc"));
-//         let nfa_def = NFA::from(&pattern!("def"));
-//         let nfa_abc_u_def = nfa_abc.union(&nfa_def);
+    //     #[test]
+    //     fn abc_abc() {
+    //         let nfa_abc_abc = NFA::from(&pattern!("abc" "abc"));
 
-//         assert!(nfa_abc_u_def.find("abc"));
-//         assert!(nfa_abc_u_def.find("def"));
-//         assert!(!nfa_abc_u_def.find(""));
-//         assert!(!nfa_abc_u_def.find("abcd"));
-//     }
+    //         assert!(!nfa_abc_abc.find(""));
+    //         assert!(!nfa_abc_abc.find("a"));
+    //         assert!(!nfa_abc_abc.find("abc"));
+    //         assert!(nfa_abc_abc.find("abcabc"));
+    //         assert!(!nfa_abc_abc.find("abcabcabc"));
+    //     }
 
-//     #[test]
-//     fn one_of_abc() {
-//         let nfa_abc = NFA::from(&pattern!(["abc"]));
+    //     #[test]
+    //     fn abc_repeat() {
+    //         let nfa_abc_repeat = NFA::from(&pattern!("abc"*));
 
-//         assert!(!nfa_abc.find(""));
-//         assert!(nfa_abc.find("a"));
-//         assert!(nfa_abc.find("b"));
-//         assert!(nfa_abc.find("c"));
-//         assert!(!nfa_abc.find("aa"));
-//         assert!(!nfa_abc.find("ab"));
-//         assert!(!nfa_abc.find("ac"));
-//     }
+    //         assert!(nfa_abc_repeat.find(""));
+    //         assert!(nfa_abc_repeat.find("abc"));
+    //         assert!(nfa_abc_repeat.find("abcabc"));
+    //         assert!(!nfa_abc_repeat.find("a"));
+    //         assert!(!nfa_abc_repeat.find("b"));
+    //     }
 
-//     #[test]
-//     fn unicode() {
-//         let nfa = NFA::from(&pattern!(["æøå🌏"]));
+    //     #[test]
+    //     fn abc_abc_repeat() {
+    //         let nfa_abc = NFA::from(&pattern!("abc"));
 
-//         assert!(!nfa.find(" "));
-//         assert!(!nfa.find(""));
-//         assert!(nfa.find("æ"));
-//         assert!(nfa.find("ø"));
-//         assert!(nfa.find("å"));
-//         assert!(nfa.find("🌏"));
-//         assert!(!nfa.find("a"));
-//         assert!(!nfa.find("b"));
-//         assert!(!nfa.find("c"));
-//     }
+    //         let nfa_abc_abc = nfa_abc.clone().concat(&nfa_abc);
+    //         let nfa_abc_abc_repeat = nfa_abc_abc.repeat();
 
-//     #[test]
-//     fn unicode_repeat() {
-//         let nfa = NFA::from(&pattern!(["æøå"]*));
+    //         assert!(nfa_abc_abc_repeat.find(""));
+    //         assert!(!nfa_abc_abc_repeat.find("abc"));
+    //         assert!(nfa_abc_abc_repeat.find("abcabc"));
+    //         assert!(!nfa_abc_abc_repeat.find("abcabcabc"));
+    //     }
 
-//         assert!(nfa.find("æå"));
-//         assert!(nfa.find("øæ"));
-//         assert!(nfa.find("åø"));
-//         assert!(!nfa.find("ab"));
-//         assert!(!nfa.find("bc"));
-//         assert!(!nfa.find("cd"));
-//     }
+    //     #[test]
+    //     fn abc_u_def() {
+    //         let nfa_abc = NFA::from(&pattern!("abc"));
+    //         let nfa_def = NFA::from(&pattern!("def"));
+    //         let nfa_abc_u_def = nfa_abc.union(&nfa_def);
 
-//     #[test]
-//     fn alt() {
-//         let nfa = NFA::from(&Pattern::alt(&[pattern!("abc"), pattern!("def")]));
+    //         assert!(nfa_abc_u_def.find("abc"));
+    //         assert!(nfa_abc_u_def.find("def"));
+    //         assert!(!nfa_abc_u_def.find(""));
+    //         assert!(!nfa_abc_u_def.find("abcd"));
+    //     }
 
-//         assert!(nfa.find("abc"));
-//         assert!(nfa.find("def"));
-//     }
+    //     #[test]
+    //     fn one_of_abc() {
+    //         let nfa_abc = NFA::from(&pattern!(["abc"]));
 
-//     #[test]
-//     fn tp() {
-//         let empty = NFA::empty();
-//         let tp = pattern!("tp");
-//         let tp_alt = NFA::from(&Pattern::alt(&[tp]));
-//         let empty_tp_alt = empty.concat(&tp_alt);
-//     }
+    //         assert!(!nfa_abc.find(""));
+    //         assert!(nfa_abc.find("a"));
+    //         assert!(nfa_abc.find("b"));
+    //         assert!(nfa_abc.find("c"));
+    //         assert!(!nfa_abc.find("aa"));
+    //         assert!(!nfa_abc.find("ab"));
+    //         assert!(!nfa_abc.find("ac"));
+    //     }
 
-//     #[test]
-//     fn number() {
-//         let digit = NFA::from(&Pattern::one_of("0123456789"));
-//         let digit_many = digit.clone().repeat();
-//         let digit_many_one = digit.concat(&digit_many);
+    //     #[test]
+    //     fn unicode() {
+    //         let nfa = NFA::from(&pattern!(["æøå🌏"]));
 
-//         let nfa = digit_many_one;
+    //         assert!(!nfa.find(" "));
+    //         assert!(!nfa.find(""));
+    //         assert!(nfa.find("æ"));
+    //         assert!(nfa.find("ø"));
+    //         assert!(nfa.find("å"));
+    //         assert!(nfa.find("🌏"));
+    //         assert!(!nfa.find("a"));
+    //         assert!(!nfa.find("b"));
+    //         assert!(!nfa.find("c"));
+    //     }
 
-//         assert!(nfa.find("0"));
-//         assert!(nfa.find("1"));
-//         assert!(nfa.find("9"));
-//         assert!(nfa.find("99"));
-//         assert!(nfa.find("129385123901238189"));
-//         assert!(!nfa.find("abasdasd"));
-//         assert!(!nfa.find(""));
-//         assert!(!nfa.find(" "));
-//         assert!(!nfa.find("ab123abasd"));
-//         assert!(!nfa.find("123123a"));
-//         assert!(!nfa.find("a123123"));
-//     }
+    //     #[test]
+    //     fn unicode_repeat() {
+    //         let nfa = NFA::from(&pattern!(["æøå"]*));
 
-//     #[test]
-//     fn space() {
-//         let nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+    //         assert!(nfa.find("æå"));
+    //         assert!(nfa.find("øæ"));
+    //         assert!(nfa.find("åø"));
+    //         assert!(!nfa.find("ab"));
+    //         assert!(!nfa.find("bc"));
+    //         assert!(!nfa.find("cd"));
+    //     }
 
-//         assert!(!nfa.find(""));
-//         assert!(nfa.find(" "));
-//         assert!(nfa.find("  "));
-//         assert!(nfa.find("   "));
-//         assert!(!nfa.find("abc "));
-//         assert!(!nfa.find(" abc"));
-//     }
+    //     #[test]
+    //     fn alt() {
+    //         let nfa = NFA::from(&Pattern::alt(&[pattern!("abc"), pattern!("def")]));
 
-//     #[test]
-//     fn integer_space_integer() {
-//         let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
-//         let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+    //         assert!(nfa.find("abc"));
+    //         assert!(nfa.find("def"));
+    //     }
 
-//         let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+    //     #[test]
+    //     fn tp() {
+    //         let empty = NFA::empty();
+    //         let tp = pattern!("tp");
+    //         let tp_alt = NFA::from(&Pattern::alt(&[tp]));
+    //         let empty_tp_alt = empty.concat(&tp_alt);
+    //     }
 
-//         let nfa = integer_space_integer_nfa;
+    //     #[test]
+    //     fn number() {
+    //         let digit = NFA::from(&Pattern::one_of("0123456789"));
+    //         let digit_many = digit.clone().repeat();
+    //         let digit_many_one = digit.concat(&digit_many);
 
-//         assert!(nfa.find("10 10"));
-//         assert!(!nfa.find(" 10 10"));
-//         assert!(nfa.find("10    10"));
-//         assert!(!nfa.find("a10 10"));
-//         assert!(!nfa.find("10 10 "));
-//     }
-// }
+    //         let nfa = digit_many_one;
+
+    //         assert!(nfa.find("0"));
+    //         assert!(nfa.find("1"));
+    //         assert!(nfa.find("9"));
+    //         assert!(nfa.find("99"));
+    //         assert!(nfa.find("129385123901238189"));
+    //         assert!(!nfa.find("abasdasd"));
+    //         assert!(!nfa.find(""));
+    //         assert!(!nfa.find(" "));
+    //         assert!(!nfa.find("ab123abasd"));
+    //         assert!(!nfa.find("123123a"));
+    //         assert!(!nfa.find("a123123"));
+    //     }
+
+    //     #[test]
+    //     fn space() {
+    //         let nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+
+    //         assert!(!nfa.find(""));
+    //         assert!(nfa.find(" "));
+    //         assert!(nfa.find("  "));
+    //         assert!(nfa.find("   "));
+    //         assert!(!nfa.find("abc "));
+    //         assert!(!nfa.find(" abc"));
+    //     }
+
+    //     #[test]
+    //     fn integer_space_integer() {
+    //         let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
+    //         let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
+
+    //         let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+
+    //         let nfa = integer_space_integer_nfa;
+
+    //         assert!(nfa.find("10 10"));
+    //         assert!(!nfa.find(" 10 10"));
+    //         assert!(nfa.find("10    10"));
+    //         assert!(!nfa.find("a10 10"));
+    //         assert!(!nfa.find("10 10 "));
+    //     }
+}

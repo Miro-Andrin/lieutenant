@@ -1,6 +1,6 @@
 use super::*;
-use std::collections::{BTreeMap};
 use indexmap::IndexSet;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct State {
@@ -32,10 +32,10 @@ impl Index<u8> for State {
 
 #[derive(Debug, Clone)]
 pub struct DFA {
-    /// All posible states and their transition table
+    /// The states are the nodes of the DFA. The states hold refferences to transition tables, that c
     pub states: Vec<State>,
     pub(crate) ends: Vec<StateId>,
-    pub(crate) classes: IndexSet<ByteClass>,
+    pub(crate) transitions: IndexSet<ByteClass>,
 }
 
 impl Index<StateId> for DFA {
@@ -54,7 +54,7 @@ impl IndexMut<StateId> for DFA {
 impl Index<ByteClassId> for DFA {
     type Output = ByteClass;
     fn index(&self, ByteClassId(index): ByteClassId) -> &Self::Output {
-        &self.classes[index as usize]
+        &self.transitions[index as usize]
     }
 }
 
@@ -66,13 +66,12 @@ impl Index<(StateId, u8)> for DFA {
     }
 }
 
-
 impl DFA {
     /// Creates an DFA which matches nothing.
     pub(crate) fn nothing() -> Self {
         Self {
             states: vec![],
-            classes: IndexSet::new(),
+            transitions: IndexSet::new(),
             ends: vec![],
         }
     }
@@ -81,12 +80,12 @@ impl DFA {
     pub fn empty() -> Self {
         Self {
             states: vec![State::empty()],
-            classes: iter::once(ByteClass::empty()).collect(),
+            transitions: iter::once(ByteClass::empty()).collect(),
             ends: vec![StateId::of(0)],
         }
     }
 
-    /// Create a new empty state and returns its id. 
+    /// Create a new empty state and returns its id.
     pub(crate) fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
@@ -111,17 +110,17 @@ impl DFA {
         }
 
         self[id].table = table;
-        
+
         let class_id = self.push_class(class);
         self[id].class = class_id;
     }
 
     pub(crate) fn push_class(&mut self, class: ByteClass) -> ByteClassId {
-        if let Some(id) = self.classes.get_index_of(&class) {
+        if let Some(id) = self.transitions.get_index_of(&class) {
             ByteClassId(id as u16)
         } else {
-            let id = ByteClassId(self.classes.len() as u16);
-            self.classes.insert(class);
+            let id = ByteClassId(self.transitions.len() as u16);
+            self.transitions.insert(class);
             id
         }
     }
@@ -172,7 +171,7 @@ impl DFA {
         DFA {
             states: new_states.into_iter().map(|(_, state)| state).collect(),
             ends,
-            classes: self.classes,
+            transitions: self.transitions,
         }
     }
 }
@@ -195,52 +194,87 @@ impl Find<StateId> for DFA {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::automaton::{NFA, pattern::*};
-    use std::borrow::Cow;
-
+    use crate::automaton::NFA;
+    use regex_to_nfa::regex_to_nfa;
     #[test]
-    fn integer_space_integer() {
-        let integer_nfa = NFA::from(Pattern::INTEGER);
-        let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
-
-        let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
-
-
-        let nfa = integer_space_integer_nfa;
+    fn match_any_u8() {
+        let nfa = NFA::single_u8();
         let dfa = DFA::from(nfa);
 
-        assert!(dfa.find("10 10").is_ok());
-        assert!(dfa.find(" 10 10").is_err());
-        assert!(dfa.find("10    10").is_ok());
-        assert!(dfa.find("a10 10").is_err());
-        assert!(dfa.find("10 10 ").is_err());
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_ok());
+        assert!(dfa.find("").is_err());
+        assert!(dfa.find(" ").is_ok());
+        assert!(dfa.find("aa").is_err());
+        assert!(dfa.find("😀").is_err()); //More then one u8
     }
+
+    // #[test]
+    // fn not_empy() {
+
+    //     let empty = NFA::from(&literal(""));
+    //     let dfa = DFA::from(empty);
+
+    //     assert!(dfa.find("").is_ok());
+    //     assert!(dfa.find(" ").is_err());
+
+    //     let not_empty = NFA::from(&literal("")).not();
+    //     let dfa = DFA::from(not_empty);
+
+    //     assert!(dfa.find("").is_err());
+    //     //assert!(dfa.find(" ").is_ok());
+    //     assert!(dfa.find("a").is_ok());
+
+    // }
+
+    // #[test]
+    // fn not_something() {
+
+    //     let nfa = NFA::from(&literal("a"));
+    //     let dfa = DFA::from(nfa);
+
+    //     assert!(dfa.find("a").is_ok());
+    //     assert!(dfa.find("b").is_err());
+
+    //     let not_nfa = NFA::from(&literal("")).not();
+    //     let dfa = DFA::from(not_nfa);
+
+    //     assert!(dfa.find("a").is_err());
+    //     //assert!(dfa.find(" ").is_ok());
+    //     assert!(dfa.find("b").is_ok());
+
+    // }
+
+    // #[test]
+    // fn integer_space_integer() {
+    //     let integer_nfa = regex_to_nfa("[0-9][0-9]*");
+    //     let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
+
+    //     let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
+
+    //     let nfa = integer_space_integer_nfa;
+    //     let dfa = DFA::from(nfa);
+
+    //     assert!(dfa.find("10 10").is_ok());
+    //     assert!(dfa.find(" 10 10").is_err());
+    //     assert!(dfa.find("10    10").is_ok());
+    //     assert!(dfa.find("a10 10").is_err());
+    //     assert!(dfa.find("10 10 ").is_err());
+    // }
 
     #[test]
     fn abc() {
-        let nfa = NFA::from(&literal("abc"));
-        
+        let nfa = regex_to_nfa("abc").unwrap();
+
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
         assert!(dfa.find("abcabc").is_err());
         assert!(dfa.find("a").is_err());
-    }
-
-    #[test]
-    fn abc_abc() {
-        let nfa = NFA::from(&concat(&[Cow::Owned(literal("abc")), Cow::Owned(literal("abc"))]));
-        let dfa = DFA::from(nfa);
-
-        assert!(dfa.find("").is_err());
-        assert!(dfa.find("a").is_err());
-        assert!(dfa.find("abc").is_err());
-        assert!(dfa.find("abcabc").is_ok());
-        assert!(dfa.find("abcabcabc").is_err());
     }
 }

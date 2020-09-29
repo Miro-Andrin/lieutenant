@@ -2,7 +2,7 @@
 
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
-use nfa::regex_to_nfa;
+
 
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> Self {
@@ -67,14 +67,7 @@ impl From<NFA> for DFA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::pattern::*;
-
-    #[test]
-    fn abc_repeat() {
-        let nfa_abc_repeat = regex_to_nfa("(abc)*").unwrap();
-
-        let dfa_abc_repeat = DFA::from(nfa_abc_repeat);
-    }
+    use regex_to_nfa::regex_to_nfa;
 
     #[test]
     fn abc_u_abc() {

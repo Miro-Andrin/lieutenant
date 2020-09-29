@@ -82,7 +82,7 @@ impl ParserKind {
 }
 
 impl<'a> From<&'a ParserKind> for NFA {
-    fn from(parser: &'a ParserKind) -> Self {
+    fn from(_parser: &'a ParserKind) -> Self {
         // lazy_static! {
         //     static ref WORD: NFA = NFA::from(&Pattern::WORD);
         //     static ref BOOL: NFA = NFA::from(&Pattern::Alt(&[pattern!("true"), pattern!("false")]));

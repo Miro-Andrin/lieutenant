@@ -2,10 +2,8 @@ use super::*;
 
 use crate::graph::{Node, RootNode};
 use indexmap::IndexSet;
-use pattern::*;
-use regex_syntax::{ast, Parser};
-use std::borrow::Cow;
 use std::collections::BTreeSet;
+use regex_to_nfa::regex_to_nfa;
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -94,13 +92,25 @@ impl Index<(StateId, u8)> for NFA {
 
 impl NFA {
     /// Matches the empty string
-    fn empty() -> Self {
+    pub (crate) fn empty() -> Self {
         Self {
             start: StateId::of(0),
             states: vec![State::empty()],
             translations: iter::once(ByteClass::empty()).collect(),
             end: StateId::of(0),
         }
+    }
+
+    pub(crate) fn literal(lit: &str) -> Self {
+        let mut nfa = NFA::empty();
+        let end = lit.bytes().fold(nfa.start, |id, c| {
+            let next = nfa.push_state();
+            let byte_class = ByteClass::from(c);
+            nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
+            next
+        });
+        nfa.end = end;
+        nfa
     }
 
     pub(crate) fn single_u8() -> Self {
@@ -113,6 +123,15 @@ impl NFA {
             vec![vec![], vec![nfa.end], vec![]],
         );
         nfa
+    }
+
+    
+    pub(crate) fn dot_utf_8() -> Self {
+        // This method creates 4 - nodes. 
+        
+        
+        
+
     }
 
     fn push_state(&mut self) -> StateId {
@@ -293,126 +312,57 @@ impl NFA {
     }
 }
 
-impl From<Range<char>> for NFA {
-    fn from(range: Range<char>) -> Self {
+
+impl From<Range<u8>> for NFA {
+    fn from(range : Range<u8>) -> Self {
+
+        let mut buffer = [0; 4];
+        let mut classes = vec![ByteClass::empty(); 4];
+        for c in range {
+            let bytes = char::from(c).encode_utf8(&mut buffer);
+            for (i, b) in bytes.bytes().enumerate() {
+                if i + 1 < char::from(c).len_utf8() {
+                    classes[i][b] = 2;
+                } else {
+                    classes[i][b] = 1;
+                }
+            }
+        }
         
-        todo!()
+        let mut nfa = NFA::empty();
+        let mut id = nfa.start;
 
+        let classes: Vec<_> = classes
+            .into_iter()
+            .take_while(|class| !class.is_empty())
+            .collect();
 
-    }
-}
+        let end = StateId::of(classes.len() as u32);
 
-pub(crate) fn regex_to_nfa(regex: &str) -> Result<NFA, String> {
-    let hir = Parser::new().parse(regex).unwrap();
-    hir_to_nfa(hir)
-}
-
-fn hir_to_nfa(hir: regex_syntax::hir::Hir) -> Result<NFA, String> {
-    match hir.into_kind() {
-        regex_syntax::hir::HirKind::Empty => Ok(NFA::single_u8()),
-        regex_syntax::hir::HirKind::Literal(lit) => {
-            match lit {
-                regex_syntax::hir::Literal::Unicode(uni) => {
-                    let range = Range {
-                        start: uni,
-                        end : uni
-                    };
-                    Ok(NFA::from(range))
-                }
-                regex_syntax::hir::Literal::Byte(byte) => {
-                    let range = Range {
-                        start: char::from(byte),
-                        end : char::from(byte)
-                    };
-                    Ok(NFA::from(range))
-                }
-            }
-        }
-        regex_syntax::hir::HirKind::Class(class) => {
-            match class {
-                regex_syntax::hir::Class::Unicode(uni) => {
-                
-                    let mut nfa = NFA::empty();
-                    for range in uni.iter()  {
-                        //Todo check that range is inclusive 
-                        nfa = nfa.union(&NFA::from(Range{start: range.start(), end: range.end()}))
-                    }
-                    Ok(nfa)
-                }
-                regex_syntax::hir::Class::Bytes(byte) => {
-
-                    let mut nfa = NFA::empty();
-                    for range in byte.iter()  {
-                        //Todo check that range is inclusive 
-                        nfa = nfa.union(&NFA::from(Range{start: char::from(range.start()), end: char::from(range.end())}))
-                    }
-                    Ok(nfa)
-                }
-            }
-        }
-        regex_syntax::hir::HirKind::Anchor(x) => match x {
-            regex_syntax::hir::Anchor::StartLine => {
-                Err("We dont suport StartLine symbols!".to_string())
-            }
-            regex_syntax::hir::Anchor::EndLine => {
-                Err("We dont suport EndLine symbols!".to_string())
-            }
-            regex_syntax::hir::Anchor::StartText => {
-                Err("We dont suport StartText symbol!".to_string())
-            }
-            regex_syntax::hir::Anchor::EndText => Err("We dont suport EndText symbol!".to_string()),
-        },
-        regex_syntax::hir::HirKind::WordBoundary(boundary) => {
-            match boundary {
-                regex_syntax::hir::WordBoundary::Unicode => {
-                    todo!() // I dont know if we need to suport this
-                }
-                regex_syntax::hir::WordBoundary::UnicodeNegate => {
-                    todo!() // I dont know if we need to suport this
-                }
-                regex_syntax::hir::WordBoundary::Ascii => {
-                    todo!() // I dont know if we need to suport this
-                }
-                regex_syntax::hir::WordBoundary::AsciiNegate => {
-                    todo!() // I dont know if we need to suport this
-                }
-            }
-        }
-        regex_syntax::hir::HirKind::Repetition(x) => {
-            if x.greedy {
-                let nfa = hir_to_nfa(*x.hir)?;
-                Ok(nfa.repeat())
+        for class in classes {
+            let next_id = nfa.push_state();
+            if next_id == end {
+                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
             } else {
-                Err("We dont suport non greedy patterns".to_string())
+                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
             }
-        }
-        regex_syntax::hir::HirKind::Group(group) => {
-            //TODO i dont know how we are suposed to interprite an empty
-            //hir/nfa in this case. Should it maybe be a no-op?
-            hir_to_nfa(*group.hir)
-        }
-        regex_syntax::hir::HirKind::Concat(cats) => {
-            let mut nfas = cats.iter().map(|hir| hir_to_nfa(hir.to_owned()));
-            let mut fst = nfas.next().unwrap()?;
-            for nfa in nfas {
-                fst = fst.concat(&nfa?);
-            }
-            Ok(fst)
+            id = next_id;
         }
 
-        regex_syntax::hir::HirKind::Alternation(alts) => {
-            let mut nfas = alts.iter().map(|hir| hir_to_nfa(hir.to_owned()));
-            let mut fst = nfas.next().unwrap()?;
-            for nfa in nfas {
-                fst = fst.union(&nfa?);
-            }
-            Ok(fst)
-        }
+        nfa.end = id;
+        nfa
+        
     }
 }
 
 
-// TODO remove 
+
+//impl From<Range<char>> for NFA {
+//    fn from(range : Range<char>) -> Self {
+//        todo!()
+//    }
+// }
+// TODO remove
 // impl<'a> From<&Pattern<'a>> for NFA {
 //     fn from(pattern: &Pattern) -> Self {
 //         match pattern {
@@ -530,14 +480,14 @@ impl<Ctx> From<RootNode<Ctx>> for NFA {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use regex_to_nfa::regex_to_nfa;
     #[test]
     fn abc() {
         let nfa = regex_to_nfa("abc").unwrap();
-        let dfa = DFA::from(nfa);            
+        let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
-    }   
+    }
 
     #[test]
     fn abc_repeat() {
@@ -575,16 +525,15 @@ mod tests {
         assert!(dfa.find("a").is_err());
     }
 
-     #[test]
+    #[test]
     fn dot() {
         let nfa = regex_to_nfa(".").unwrap();
-        let dfa = DFA::from(nfa);            
+        let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_err());
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_ok());
-    }   
-
-
+        assert!(dfa.find("").is_ok());
+    }
 
     //     #[test]
     //     fn abc() {

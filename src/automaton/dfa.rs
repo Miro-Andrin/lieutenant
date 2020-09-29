@@ -1,6 +1,6 @@
 use super::*;
-use std::collections::{BTreeMap};
 use indexmap::IndexSet;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct State {
@@ -66,7 +66,6 @@ impl Index<(StateId, u8)> for DFA {
     }
 }
 
-
 impl DFA {
     /// Creates an DFA which matches nothing.
     pub(crate) fn nothing() -> Self {
@@ -86,7 +85,7 @@ impl DFA {
         }
     }
 
-    /// Create a new empty state and returns its id. 
+    /// Create a new empty state and returns its id.
     pub(crate) fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
@@ -111,7 +110,7 @@ impl DFA {
         }
 
         self[id].table = table;
-        
+
         let class_id = self.push_class(class);
         self[id].class = class_id;
     }
@@ -195,18 +194,13 @@ impl Find<StateId> for DFA {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-        use nfa::regex_to_nfa;
-
-use super::*;
-    use crate::automaton::{NFA, pattern::*};
-    use std::borrow::Cow;
-
+    use super::*;
+    use crate::automaton::NFA;
+    use regex_to_nfa::regex_to_nfa;
     #[test]
     fn match_any_u8() {
-
         let nfa = NFA::single_u8();
         let dfa = DFA::from(nfa);
 
@@ -217,9 +211,6 @@ use super::*;
         assert!(dfa.find(" ").is_ok());
         assert!(dfa.find("aa").is_err());
         assert!(dfa.find("😀").is_err()); //More then one u8
-        
-
-
     }
 
     // #[test]
@@ -231,7 +222,6 @@ use super::*;
     //     assert!(dfa.find("").is_ok());
     //     assert!(dfa.find(" ").is_err());
 
-
     //     let not_empty = NFA::from(&literal("")).not();
     //     let dfa = DFA::from(not_empty);
 
@@ -240,7 +230,6 @@ use super::*;
     //     assert!(dfa.find("a").is_ok());
 
     // }
-
 
     // #[test]
     // fn not_something() {
@@ -251,7 +240,6 @@ use super::*;
     //     assert!(dfa.find("a").is_ok());
     //     assert!(dfa.find("b").is_err());
 
-
     //     let not_nfa = NFA::from(&literal("")).not();
     //     let dfa = DFA::from(not_nfa);
 
@@ -261,15 +249,12 @@ use super::*;
 
     // }
 
-
-
     // #[test]
     // fn integer_space_integer() {
     //     let integer_nfa = regex_to_nfa("[0-9][0-9]*");
     //     let space_nfa = NFA::from(Pattern::SPACE_MANY_ONE);
 
     //     let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
-
 
     //     let nfa = integer_space_integer_nfa;
     //     let dfa = DFA::from(nfa);
@@ -284,7 +269,7 @@ use super::*;
     #[test]
     fn abc() {
         let nfa = regex_to_nfa("abc").unwrap();
-        
+
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("").is_err());
@@ -292,5 +277,4 @@ use super::*;
         assert!(dfa.find("abcabc").is_err());
         assert!(dfa.find("a").is_err());
     }
-
 }

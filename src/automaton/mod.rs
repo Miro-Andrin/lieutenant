@@ -5,10 +5,11 @@ use std::mem;
 use std::ops::Range;
 use std::ops::{Index, IndexMut};
 
-pub mod pattern;
-pub mod nfa_to_dfa;
 pub mod dfa;
 pub mod nfa;
+pub mod nfa_to_dfa;
+pub mod pattern;
+pub mod regex_to_nfa;
 
 pub use dfa::DFA;
 pub use nfa::NFA;
@@ -31,7 +32,7 @@ impl StateId {
 pub(crate) struct ByteClassId(u16);
 
 // The standard libray is about to implement a subset of const generics, when this lands
-// we could change the Vec<u8>  to [u8: 256] and get Eq, Ord and Hash. 
+// we could change the Vec<u8>  to [u8: 256] and get Eq, Ord and Hash.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct ByteClass(pub(crate) Vec<u8>);
 
@@ -41,24 +42,32 @@ impl ByteClass {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.0.iter().all(|t| *t == 0)
+         self.0.iter().all(|t| *t == 0)
     }
 
-    pub (crate) fn full() -> Self {
-        ByteClass(vec![1;256])
+    pub(crate) fn full() -> Self {
+        ByteClass(vec![1; 256])
+    }
+
+    pub(crate) fn ones_except_last_byte() -> Self {
+
+        let v = vec![0;256];
+        for i in 128..=256u8 {
+            v[i as usize] = 1;
+        }
+        
+        ByteClass(v)
     }
 }
 
 
 impl From<u8> for ByteClass {
     fn from(value: u8) -> Self {
-        let mut values = [0u8;256];
+        let mut values = [0u8; 256];
         values[value as usize] = 1;
         return Self(values.to_vec());
     }
 }
-
-
 
 impl fmt::Debug for ByteClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -85,11 +94,11 @@ pub trait Find<T> {
 }
 
 #[cfg(test)]
-mod tests {
-        use nfa::regex_to_nfa;
+mod tests { 
 
-use super::*;
-    use super::pattern::*;
+    use regex_to_nfa::regex_to_nfa;
+
+    use super::*;
 
     #[test]
     fn byteclass_from_u8() {
@@ -102,13 +111,8 @@ use super::*;
         assert!(bc.0[0] == 1);
     }
 
-    
-
-
-
     #[test]
     fn abc() {
-        
         let nfa = regex_to_nfa("abc").unwrap();
         let dfa = DFA::from(nfa);
 
@@ -121,7 +125,6 @@ use super::*;
         assert!(dfa.find("aab").is_err());
         assert!(dfa.find("ddd").is_err());
 
-
         let nfa = regex_to_nfa("aa").unwrap();
         let dfa = DFA::from(nfa);
 
@@ -129,8 +132,6 @@ use super::*;
         assert!(dfa.find("a").is_err());
         assert!(dfa.find("aaa").is_err());
         assert!(dfa.find("aa").is_ok());
-        
-
     }
 
     #[test]
@@ -143,13 +144,12 @@ use super::*;
         assert!(dfa.find("abca").is_err());
         assert!(dfa.find("abcab").is_err());
         assert!(dfa.find("abcabd").is_err());
-
     }
 
     #[test]
     fn minimize() {
         let nfa = regex_to_nfa("(abc)*").unwrap();
         let dfa = DFA::from(nfa);
-        let minimized_dfa = dfa.minimize();
+        let _minimized_dfa = dfa.minimize();
     }
 }

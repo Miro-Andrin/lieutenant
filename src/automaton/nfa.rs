@@ -125,7 +125,7 @@ impl NFA {
         nfa
     }
 
-    fn push_state(&mut self) -> StateId {
+    pub(crate) fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
         id
@@ -304,47 +304,6 @@ impl NFA {
 }
 
 
-impl From<Range<u8>> for NFA {
-    fn from(range : Range<u8>) -> Self {
-
-        let mut buffer = [0; 4];
-        let mut classes = vec![ByteClass::empty(); 4];
-        for c in range {
-            let bytes = char::from(c).encode_utf8(&mut buffer);
-            for (i, b) in bytes.bytes().enumerate() {
-                if i + 1 < char::from(c).len_utf8() {
-                    classes[i][b] = 2;
-                } else {
-                    classes[i][b] = 1;
-                }
-            }
-        }
-        
-        let mut nfa = NFA::empty();
-        let mut id = nfa.start;
-
-        let classes: Vec<_> = classes
-            .into_iter()
-            .take_while(|class| !class.is_empty())
-            .collect();
-
-        let end = StateId::of(classes.len() as u32);
-
-        for class in classes {
-            let next_id = nfa.push_state();
-            if next_id == end {
-                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
-            } else {
-                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
-            }
-            id = next_id;
-        }
-
-        nfa.end = id;
-        nfa
-        
-    }
-}
 
 
 

@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use regex_syntax::{hir::ClassUnicodeRange, Parser};
 
-use super::{ByteClass, NFA};
+use super::{ByteClass, StateId, NFA};
 use anyhow::{bail, Result};
 
 pub(crate) fn regex_to_nfa(regex: &str) -> Result<NFA> {
@@ -27,6 +27,9 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
                         let mut end = [0u8; 4];
                         range.end().encode_utf8(&mut end);
 
+                        println!("START_BUFFER: {:?}",start);
+                        println!("END_BUFFER: {:?}",end);
+
                         let mut bytes = start.iter().copied().zip(end.iter().copied()).enumerate();
 
                         let (c, (lower, upper)) = bytes.next().unwrap();
@@ -39,6 +42,7 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
                                 classes[c][b as usize] = 3;
                             } else if b >= 240 && b < 248 {
                                 classes[c][b as usize] = 4;
+                                println!("240<=B<=248: {}",b);
                             }
                         }
 
@@ -46,14 +50,34 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
                             for b in lower..=upper {
                                 if b < 192 {
                                     classes[c][b as usize] = 1;
+                                    println!("B<192: {}",b);
                                 }
                             }
                         }
                     }
 
                     let mut nfa = NFA::empty();
+                    nfa.end = nfa.push_state();
+                    let mut prev = nfa.end;
+                    let mut start_table = vec![vec![], vec![nfa.end]];                    
 
-                    println!("{:?}", classes.iter().map(|class| class.to_vec()).collect::<Vec<_>>());
+
+                    //let states = *classes[0].iter().max().unwrap();
+                    let states = 4;
+                    for i in 1..states {
+                        let cur = nfa.push_state();
+                        nfa.set_transitions(
+                            cur,
+                            ByteClass(classes[i as usize].to_vec()),
+                            vec![vec![], vec![prev]],
+                        );
+                        prev = cur;
+
+                        //Setting transition for first node
+                        start_table.push(vec![cur]);
+                    }
+
+                    nfa.set_transitions(nfa.start, ByteClass(classes[0].to_vec()), start_table);
 
                     Ok(nfa)
                 }

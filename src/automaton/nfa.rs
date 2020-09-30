@@ -125,7 +125,7 @@ impl NFA {
         nfa
     }
 
-    fn push_state(&mut self) -> StateId {
+    pub(crate) fn push_state(&mut self) -> StateId {
         let id = StateId::of(self.states.len() as u32);
         self.states.push(State::empty());
         id
@@ -236,21 +236,19 @@ impl NFA {
     }
 
     // TODO: FIXME
-    pub fn find(&self, input: &str) -> (Vec<StateId>, Vec<StateId>) {
+    pub fn find(&self, input: &str) -> Option<StateId> {
         let mut stack = vec![(self.start, input.as_bytes())];
-        let mut errs = vec![];
-        let mut oks = vec![];
         while let Some((id, input)) = stack.pop() {
+            println!("FIND ID -> {:?}",id);
             if let Some(b) = input.first() {
+                println!("id:{:?}  b{:?}",self[id],*b);
                 stack.extend(self[(id, *b)].iter().map(|id| (*id, &input[1..])));
             } else if self.end == id {
-                oks.push(id);
-            } else {
-                errs.push(id);
+                return Some(id);
             }
             stack.extend(self[id].epsilons.iter().map(|id| (*id, input)));
         }
-        (oks, errs)
+        None
     }
 
     pub(crate) fn epsilon_closure(&self, states: BTreeSet<StateId>) -> BTreeSet<StateId> {
@@ -434,7 +432,167 @@ mod tests {
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_ok());
         assert!(dfa.find(" ").is_ok());
+        assert!(dfa.find("\n").is_err());
+        assert!(dfa.find("ab").is_err());
+        assert!(dfa.find("  ").is_err());
     }
+
+
+    #[test]
+    fn number() {
+        let nfa = regex_to_nfa("[0-9]").unwrap();
+        let dfa = DFA::from(nfa);
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("0").is_ok());
+        assert!(dfa.find("5").is_ok());
+        assert!(dfa.find("9").is_ok());
+
+        let nfa = regex_to_nfa(r"\d").unwrap();
+        let dfa = DFA::from(nfa);
+        
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("0").is_ok());
+        assert!(dfa.find("5").is_ok());
+        assert!(dfa.find("9").is_ok());
+        
+    }
+
+    
+    #[test]
+    fn abc_range() {
+        let nfa = regex_to_nfa("[abc]").unwrap();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_ok());
+
+        assert!(dfa.find("d").is_err());
+        assert!(dfa.find("👺").is_err());
+
+        
+    }
+
+    #[test]
+    fn details() {
+
+        let nfa = regex_to_nfa("👺").unwrap();
+        //let dfa = DFA::from(nfa);
+        assert!(nfa.find("👺").is_some());
+
+        println!("NORMAL DEVIL NFA: {:#?}",nfa);
+
+
+        let nfa = regex_to_nfa("[👺]").unwrap();
+//        let dfa = DFA::from(nfa);
+
+        println!("RANGED DEVIL NFA: {:#?}",nfa);
+
+        //let a = '👺';
+        //println!("{}",a.len_utf8());
+        assert!(nfa.find("👺").is_some());
+
+        
+
+    }
+
+    #[test]
+    fn not_abc_range() {
+        let nfa = regex_to_nfa("[^abc]").unwrap();
+        println!("{:?}",nfa);
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("b").is_err());
+        assert!(dfa.find("c").is_err());
+
+        assert!(dfa.find("d").is_ok());
+        assert!(dfa.find("👺").is_ok());
+
+        
+    } 
+
+    #[test]
+    fn char_range() {
+        let nfa = regex_to_nfa("[a-z]").unwrap();
+        let dfa = DFA::from(nfa);
+
+        for c in 'a'..='z' {
+            assert!(dfa.find(&c.to_string()).is_ok())
+        }
+
+        for c in 'A'..='Z' {
+            assert!(dfa.find(&c.to_string()).is_err())
+        }
+
+        assert!(dfa.find("æ").is_err());
+        assert!(dfa.find("ø").is_err());
+        assert!(dfa.find("å").is_err());
+        
+    } 
+
+
+    #[test]
+    fn range_overlap() {
+        let nfa = regex_to_nfa("[a-cb-e]").unwrap();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_ok());
+        assert!(dfa.find("d").is_ok());
+        assert!(dfa.find("e").is_ok());
+        assert!(dfa.find("f").is_err());
+    } 
+
+    #[test]
+    fn range_disjoint() {
+        let nfa = regex_to_nfa("[a-cx-z]").unwrap();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_ok());
+        assert!(dfa.find("x").is_ok());
+        assert!(dfa.find("y").is_ok());
+        assert!(dfa.find("z").is_ok());
+        assert!(dfa.find("9").is_err());
+
+    } 
+
+
+     #[test]
+    fn range_concat() {
+        let nfa = regex_to_nfa("[a-z][a-z]").unwrap();
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("aa").is_ok());
+        assert!(dfa.find("bb").is_ok());
+        assert!(dfa.find("cc").is_ok());
+        assert!(dfa.find("ab").is_ok());
+        assert!(dfa.find("ac").is_ok());
+        assert!(dfa.find("ag").is_ok());
+        assert!(dfa.find("a9").is_err());
+        assert!(dfa.find("a").is_err());
+        assert!(dfa.find("a ").is_err());
+        assert!(dfa.find("aaa").is_err());
+
+    } 
+
+
+
+
+
+    #[test]
+    fn word() {
+        let nfa = regex_to_nfa(r"\w").unwrap();
+        let dfa = DFA::from(nfa);
+        assert!(dfa.find("ww ").is_ok());
+        assert!(dfa.find("a").is_ok());
+    }
+
+
+    
 
     //     #[test]
     //     fn abc() {

@@ -20,7 +20,6 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
         regex_syntax::hir::HirKind::Class(class) => {
             match class {
                 regex_syntax::hir::Class::Unicode(uni) => {
-                    let mut nfa = NFA::empty();
                     let mut classes = [[0u8; 256]; 4];
                     for range in uni.ranges() {
                         let mut start = [0u8; 4];
@@ -28,25 +27,35 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
                         let mut end = [0u8; 4];
                         range.end().encode_utf8(&mut end);
 
-                        // [0x00, 0x00, 0x00, 0x09]
-                        // [0x00, 0x10, 0xff, 0xff]
+                        let mut bytes = start.iter().copied().zip(end.iter().copied()).enumerate();
 
-                        for (state, (lower, upper)) in
-                            start.iter().copied().zip(end.iter().copied()).enumerate()
-                        {
+                        let (c, (lower, upper)) = bytes.next().unwrap();
+                        for b in lower..=upper {
+                            if b < 128 {
+                                classes[c][b as usize] = 1;
+                            } else if b >= 192 && b < 224 {
+                                classes[c][b as usize] = 2;
+                            } else if b >= 224 && b < 240 {
+                                classes[c][b as usize] = 3;
+                            } else if b >= 240 && b < 248 {
+                                classes[c][b as usize] = 4;
+                            }
+                        }
+
+                        for (c, (lower, upper)) in bytes {
                             for b in lower..=upper {
-                                if b < 128 {
-                                    classes[state][b as usize] = 1;
-                                } else {
-                                    classes[state][b as usize] = 2;
+                                if b < 192 {
+                                    classes[c][b as usize] = 1;
                                 }
                             }
                         }
                     }
 
-                    for class in &classes {}
+                    let mut nfa = NFA::empty();
 
-                    todo!()
+                    println!("{:?}", classes.iter().map(|class| class.to_vec()).collect::<Vec<_>>());
+
+                    Ok(nfa)
                 }
                 regex_syntax::hir::Class::Bytes(byte) => {
                     let mut nfa = NFA::empty();

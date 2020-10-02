@@ -386,6 +386,8 @@ mod tests {
         let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
+        
+        
     }
 
     #[test]
@@ -413,6 +415,7 @@ mod tests {
         assert!(dfa.find("aabb").is_err());
         assert!(dfa.find("aa|bb").is_err());
         assert!(dfa.find("aabb").is_err());
+        assert!(dfa.find("").is_err());
     }
 
     #[test]
@@ -557,6 +560,7 @@ mod tests {
         assert!(dfa.find("y").is_ok());
         assert!(dfa.find("z").is_ok());
         assert!(dfa.find("9").is_err());
+        
 
     } 
 
@@ -591,6 +595,20 @@ mod tests {
         assert!(dfa.find("a").is_ok());
     }
 
+
+   
+    #[test]
+    fn test_union() {
+        let nfa1 = regex_to_nfa(r"a").unwrap();
+        let nfa2 = regex_to_nfa(r"b").unwrap();
+        let nfa = nfa1.union(&nfa2);
+        let dfa = DFA::from(nfa);
+
+        assert!(dfa.find("a").is_ok());
+        assert!(dfa.find("b").is_ok());
+        assert!(dfa.find("c").is_err());
+        assert!(dfa.find("").is_err());
+    }
 
     
 

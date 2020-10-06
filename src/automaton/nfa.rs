@@ -116,7 +116,6 @@ impl NFA {
     pub(crate) fn single_u8() -> Self {
         let mut nfa = NFA::empty();
         nfa.end = nfa.push_state();
-        let new_byteclass = nfa.push_class(ByteClass::full());
         nfa.set_transitions(
             nfa.start,
             ByteClass::full(),
@@ -178,7 +177,7 @@ impl NFA {
         self
     }
 
-    pub(crate) fn not(mut self) -> Self {
+    pub(crate) fn _not(mut self) -> Self {
         let len = self.states.len();
         let new_end = self.push_state();
         for (index, state) in self.states.iter_mut().enumerate().take(len) {
@@ -227,7 +226,7 @@ impl NFA {
         self
     }
 
-    pub(crate) fn optional(mut self) -> Self {
+    pub(crate) fn _optional(mut self) -> Self {
         let start = self.start;
         let end = self.end;
         let start = &mut self[start];
@@ -239,9 +238,9 @@ impl NFA {
     pub fn find(&self, input: &str) -> Option<StateId> {
         let mut stack = vec![(self.start, input.as_bytes())];
         while let Some((id, input)) = stack.pop() {
-            println!("FIND ID -> {:?}",id);
+            println!("FIND ID -> {:?}", id);
             if let Some(b) = input.first() {
-                println!("id:{:?}  b{:?}",self[id],*b);
+                println!("id:{:?}  b{:?}", self[id], *b);
                 stack.extend(self[(id, *b)].iter().map(|id| (*id, &input[1..])));
             } else if self.end == id {
                 return Some(id);
@@ -386,8 +385,6 @@ mod tests {
         let dfa = DFA::from(nfa);
         assert!(dfa.find("").is_err());
         assert!(dfa.find("abc").is_ok());
-        
-        
     }
 
     #[test]
@@ -440,7 +437,6 @@ mod tests {
         assert!(dfa.find("  ").is_err());
     }
 
-
     #[test]
     fn number() {
         let nfa = regex_to_nfa("[0-9]").unwrap();
@@ -452,15 +448,13 @@ mod tests {
 
         let nfa = regex_to_nfa(r"\d").unwrap();
         let dfa = DFA::from(nfa);
-        
+
         assert!(dfa.find("a").is_err());
         assert!(dfa.find("0").is_ok());
         assert!(dfa.find("5").is_ok());
         assert!(dfa.find("9").is_ok());
-        
     }
 
-    
     #[test]
     fn abc_range() {
         let nfa = regex_to_nfa("[abc]").unwrap();
@@ -472,37 +466,25 @@ mod tests {
 
         assert!(dfa.find("d").is_err());
         assert!(dfa.find("👺").is_err());
-
-        
     }
 
     #[test]
     fn details() {
-
         let nfa = regex_to_nfa("👺").unwrap();
         //let dfa = DFA::from(nfa);
         assert!(nfa.find("👺").is_some());
 
-        println!("NORMAL DEVIL NFA: {:#?}",nfa);
-
-
         let nfa = regex_to_nfa("[👺]").unwrap();
-//        let dfa = DFA::from(nfa);
-
-        println!("RANGED DEVIL NFA: {:#?}",nfa);
+        //        let dfa = DFA::from(nfa);
 
         //let a = '👺';
         //println!("{}",a.len_utf8());
         assert!(nfa.find("👺").is_some());
-
-        
-
     }
 
     #[test]
     fn not_abc_range() {
         let nfa = regex_to_nfa("[^abc]").unwrap();
-        println!("{:?}",nfa);
         let dfa = DFA::from(nfa);
 
         assert!(dfa.find("a").is_err());
@@ -511,9 +493,7 @@ mod tests {
 
         assert!(dfa.find("d").is_ok());
         assert!(dfa.find("👺").is_ok());
-
-        
-    } 
+    }
 
     #[test]
     fn char_range() {
@@ -531,9 +511,7 @@ mod tests {
         assert!(dfa.find("æ").is_err());
         assert!(dfa.find("ø").is_err());
         assert!(dfa.find("å").is_err());
-        
-    } 
-
+    }
 
     #[test]
     fn range_overlap() {
@@ -546,7 +524,7 @@ mod tests {
         assert!(dfa.find("d").is_ok());
         assert!(dfa.find("e").is_ok());
         assert!(dfa.find("f").is_err());
-    } 
+    }
 
     #[test]
     fn range_disjoint() {
@@ -560,12 +538,9 @@ mod tests {
         assert!(dfa.find("y").is_ok());
         assert!(dfa.find("z").is_ok());
         assert!(dfa.find("9").is_err());
-        
+    }
 
-    } 
-
-
-     #[test]
+    #[test]
     fn range_concat() {
         let nfa = regex_to_nfa("[a-z][a-z]").unwrap();
         let dfa = DFA::from(nfa);
@@ -580,12 +555,7 @@ mod tests {
         assert!(dfa.find("a").is_err());
         assert!(dfa.find("a ").is_err());
         assert!(dfa.find("aaa").is_err());
-
-    } 
-
-
-
-
+    }
 
     #[test]
     fn word() {
@@ -595,8 +565,6 @@ mod tests {
         assert!(dfa.find("a").is_ok());
     }
 
-
-   
     #[test]
     fn test_union() {
         let nfa1 = regex_to_nfa(r"a").unwrap();
@@ -609,8 +577,6 @@ mod tests {
         assert!(dfa.find("c").is_err());
         assert!(dfa.find("").is_err());
     }
-
-    
 
     //     #[test]
     //     fn abc() {

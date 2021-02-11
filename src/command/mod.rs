@@ -23,13 +23,12 @@ pub trait Parser {
     fn parse(&self, input: &mut &str) -> Result<Self::Extract>;
 }
 
-pub struct Command<P, F, M> {
+pub struct Command<P, F> {
     pub(crate) parser: P,
     pub(crate) callback: F,
-    pub(crate) meta: M,
 }
 
-impl<P, F, M> Command<P, F, M>
+impl<P, F> Command<P, F>
 where
     P: Parser,
     F: Func<P::Extract>
@@ -53,14 +52,14 @@ pub trait CommandBuilder: Parser + Sized {
         Map { parser: self, map }
     }
 
-    fn build<F: Func<Self::Extract>, M: Default>(self, callback: F) -> Command<Self, F, M> {
-        Command { parser: self, callback, meta: M::default() }
+    fn build<F: Func<Self::Extract>>(self, callback: F) -> Command<Self, F> {
+        Command { parser: self, callback }
     }
 }
 
 impl<T> CommandBuilder for T where T: Parser + Sized {}
 
-impl<P, F, M> AddToDispatcher for Command<P, F, M>
+impl<P, F> AddToDispatcher for Command<P, F>
 where
     P: AddToDispatcher
 {

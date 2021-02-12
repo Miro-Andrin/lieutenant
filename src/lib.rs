@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::{borrow::Borrow, fmt, todo};
 
 use anyhow::{bail, Result};
-use command::{And, Space};
+use command::{And, Argument, Space};
 use generic::{Func, Product, Tuple};
 
 type NodeId = usize;
@@ -106,4 +106,25 @@ mod tests {
 
         let (plugin_id, command_id) = commands[command_id.unwrap()];
     }
+}
+
+#[macro_export]
+macro_rules! regex_validator {
+    ($ident:ty, $regex:literal) => {
+        impl Validator for $ident {
+            fn validate(&self, input: &mut &str) -> bool {
+                use lazy_static::lazy_static;
+                use regex::Regex;
+                lazy_static! {
+                    static ref RE: Regex = Regex::new($regex).unwrap();
+                };
+                if let Some(m) = RE.find(input) {
+                    *input = &input[m.end()..];
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    };
 }

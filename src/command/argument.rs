@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData, str::FromStr, todo};
 
 use anyhow::{anyhow, bail};
 
-use crate::{AddToDispatcher, Dispatcher, Node, NodeId, Validator};
+use crate::{regex_validator, AddToDispatcher, Dispatcher, Node, NodeId, Validator};
 
 use super::{Parser, Result};
 
@@ -13,7 +13,9 @@ pub struct Argument<A> {
 
 impl<A> Clone for Argument<A> {
     fn clone(&self) -> Self {
-        Self { argument: PhantomData::default() }
+        Self {
+            argument: PhantomData::default(),
+        }
     }
 }
 
@@ -46,7 +48,7 @@ where
 
 impl<T> fmt::Display for Argument<T>
 where
-    T: Integer
+    T: Integer,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<int>")?;
@@ -54,26 +56,36 @@ where
     }
 }
 
-pub trait Integer: FromStr {}
+pub trait Integer {}
 
-impl Integer for u8 {}
-impl Integer for i8 {}
-impl Integer for u16 {}
-impl Integer for i16 {}
-impl Integer for u32 {}
-impl Integer for i32 {}
-impl Integer for u64 {}
-impl Integer for i64 {}
-impl Integer for u128 {}
-impl Integer for i128 {}
+use lazy_static::lazy_static;
 
-impl<T: FromStr> Validator for Argument<T> {
-    fn validate(&self, input: &mut &str) -> bool {
-        T::from_str(*input).is_ok()
-    }
+macro_rules! integer {
+    [$($ident:ty),*$(,)?] => {
+        $(
+            regex_validator!(Argument<$ident>, "^[0-9]+");
+            impl Integer for $ident {}
+        )*
+    };
 }
 
-impl<T: FromStr + 'static> AddToDispatcher for Argument<T>  {
+integer![
+    u8,
+    i8,
+    u16,
+    i16,
+    u32,
+    i32,
+    u64,
+    i64,
+    u128,
+    i128,
+];
+
+impl<T: 'static> AddToDispatcher for Argument<T>
+where
+    Argument<T>: Validator,
+{
     fn add_to_dispatcher(&self, parent: Option<NodeId>, dispatcher: &mut Dispatcher) -> NodeId {
         dispatcher.add(parent, Node::new(self.clone()))
     }

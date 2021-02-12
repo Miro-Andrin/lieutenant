@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 fnv = "1.0"
 anyhow = "1.0"
+regex = "1.4"
+lazy_static = "1.4"

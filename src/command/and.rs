@@ -26,20 +26,15 @@ where
     /// error its your responisbillity to have stored a copy.
     fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
         let a = self.a.parse(input)?;
-        println!("AND HERE WE GO 1");
 
         // Removes at least one space.
         let prev_len = input.len();
         *input = input.trim_start();
         if input.len() == prev_len {
-            bail!("")
+            bail!("Filed in midle of And.")
         }
-        
-        println!("AND HERE WE GO 2");
 
         let b = self.b.parse(input)?;
-
-        println!("AND HERE WE GO 3");
 
         Ok(a.combine(b))
     }
@@ -91,7 +86,7 @@ mod tests {
 
         assert!(x.parse(input).is_ok());
 
-        assert_eq!(input, &"a");
+        assert_eq!(input, &" a");
     }
 
     #[test]

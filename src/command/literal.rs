@@ -58,11 +58,7 @@ pub fn literal(literal: &str) -> Literal {
 
 impl Validator for Literal {
     fn validate(&self, input: &mut &str) -> bool {
-        self.value
-            .chars()
-            .flat_map(|c| c.to_lowercase())
-            .zip(input.chars().flat_map(|c| c.to_lowercase()))
-            .all(|(a, b)| a == b)
+        self.parse(input).is_ok()
     }
 }
 

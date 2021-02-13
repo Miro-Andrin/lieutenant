@@ -1,6 +1,8 @@
 pub mod command;
 mod generic;
 
+use std::fmt;
+
 use anyhow::Result;
 
 type NodeId = usize;
@@ -9,7 +11,6 @@ type CommandId = usize;
 pub trait Validator {
     fn validate(&self, input: &mut &str) -> bool;
 }
-
 pub struct Node {
     validator: Box<dyn Validator>,
     children: Vec<NodeId>,
@@ -30,14 +31,19 @@ impl Node {
             command: None,
         }
     }
-
     pub fn command(mut self, command: CommandId) -> Self {
         self.command = Some(command);
         self
     }
 }
 
-#[derive(Default)]
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(validator:???,children:{:?},command:{:?})", self.children,self.command)
+    }
+}
+
+#[derive(Default,Debug)]
 pub struct Dispatcher {
     root: Vec<NodeId>,
     nodes: Vec<Node>,
@@ -45,16 +51,20 @@ pub struct Dispatcher {
 
 impl Dispatcher {
     pub fn add(&mut self, parent: Option<NodeId>, node: Node) -> NodeId {
+
         let node_id = self.nodes.len();
         self.nodes.push(node);
+        
         if let Some(parent_id) = parent {
             self.nodes[parent_id].children.push(node_id);
+        } else {
+            self.root.push(node_id);
         }
         node_id
     }
 
     pub fn find(&self, input: &str) -> Option<CommandId> {
-        let mut input = input;
+        //let mut input = input;
 
         let mut stack = self
             .root
@@ -62,9 +72,19 @@ impl Dispatcher {
             .into_iter()
             .map(|child| (input, child))
             .collect::<Vec<_>>();
+
+
+        println!("First Stack: {:?}",self.root);
+        //println!("Non-Root-Nodes: {:?}",self.nodes.iter().enumerate().filter(|(i,_)| self.root.contains(i)).map(|(_,n)| n.command).collect::<Vec<_>>());
+        //println!("{:?}",self);
+        
         while let Some((mut input, node_id)) = stack.pop() {
+            println!("Stack: {:?} (input:{}, node_id:{})",stack,input,node_id);
+
             let node = &self.nodes[node_id];
             if node.validate(&mut input) {
+                println!("input_after_validate_ {}",input);
+                let input = input.trim_start();
                 if input.is_empty() {
                     if let Some(command_id) = node.command {
                         return Some(command_id);
@@ -74,6 +94,7 @@ impl Dispatcher {
                 }
             }
         }
+
         None
     }
 }
@@ -105,7 +126,7 @@ mod tests {
         command.add_to_dispatcher(None, &mut dispatcher);
         let command_id = dispatcher.find("tp 10 11 12");
         assert!(command_id.is_some())
-    }
+    }   
     #[test]
     fn simple_opt() {
         let command = literal("tp")
@@ -117,7 +138,23 @@ mod tests {
         let mut dispatcher = Dispatcher::default();
         command.add_to_dispatcher(None, &mut dispatcher);
 
-        let command_id = dispatcher.find("tp 10 11 12");
+        let command_id = dispatcher.find("tp 10");
+        assert!(command_id.is_some())
+    }
+
+    #[test]
+    fn simple_opt2() {
+        let command = literal("tp")
+            .opt_arg()
+            .arg()
+            .build(|x: Option<u32>, y:u32| move |_state: &mut u32| println!("{:?}, {:?}", x, y));
+
+        (Command::call(&command, "tp 10 ").unwrap())(&mut 0);
+
+        let mut dispatcher = Dispatcher::default();
+        command.add_to_dispatcher(None, &mut dispatcher);
+
+        let command_id = dispatcher.find("tp 10 ");
         assert!(command_id.is_some())
     }
 }

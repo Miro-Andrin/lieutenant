@@ -2,11 +2,13 @@ mod and;
 mod argument;
 mod literal;
 mod map;
+mod optargument;
 
 pub use and::*;
 pub use argument::*;
 pub use literal::*;
 pub use map::*;
+pub use optargument::*;
 
 use crate::Result;
 use crate::{
@@ -69,6 +71,9 @@ where
 {
     fn add_to_dispatcher(&self, parent: Option<NodeId>, dispatcher: &mut Dispatcher) -> NodeId {
         let node_id = self.parser.add_to_dispatcher(parent, dispatcher);
+        let node = dispatcher.nodes.get_mut(node_id).unwrap();
+        node.command = Some(0);
+        //TODO make id not always zero
         node_id
     }
 }

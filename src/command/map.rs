@@ -12,7 +12,7 @@ pub struct Map<P, F> {
 impl<P, F> Parser for Map<P, F>
 where
     P: Parser,
-    F: Func<P::Extract> 
+    F: Func<P::Extract>,
 {
     type Extract = (F::Output,);
 

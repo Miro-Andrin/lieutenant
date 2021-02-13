@@ -1,21 +1,18 @@
 mod and;
-mod literal;
-mod space;
 mod argument;
-mod repeat;
+mod literal;
 mod map;
-
-use std::{str::FromStr};
 
 pub use and::*;
 pub use argument::*;
 pub use literal::*;
-pub use space::*;
-pub use repeat::*;
 pub use map::*;
 
-use crate::{AddToDispatcher, Dispatcher, NodeId, generic::{Func, Tuple}};
-use crate::Result; 
+use crate::Result;
+use crate::{
+    generic::{Func, Tuple},
+    AddToDispatcher, Dispatcher, NodeId,
+};
 
 pub trait Parser {
     type Extract: Tuple;
@@ -31,7 +28,7 @@ pub struct Command<P, F> {
 impl<P, F> Command<P, F>
 where
     P: Parser,
-    F: Func<P::Extract>
+    F: Func<P::Extract>,
 {
     pub fn call(&self, mut input: &str) -> Result<F::Output> {
         let args = self.parser.parse(&mut input)?;
@@ -40,12 +37,16 @@ where
 }
 
 pub trait CommandBuilder: Parser + Sized {
-    fn and<T: Parser>(self, other: T) -> And<Self, T> {
+    fn and<T>(self, other: T) -> And<Self, T> {
         And { a: self, b: other }
     }
-    
-    fn arg<T: FromStr>(self) -> And<Self, Argument<T>> {
+
+    fn arg<T>(self) -> And<Self, Argument<T>> {
         self.and(argument())
+    }
+
+    fn opt_arg<T>(self) -> And<Self, OptArgument<T>> {
+        self.and(opt_argument())
     }
 
     fn map<F: Func<Self::Extract>>(self, map: F) -> Map<Self, F> {
@@ -53,7 +54,10 @@ pub trait CommandBuilder: Parser + Sized {
     }
 
     fn build<F: Func<Self::Extract>>(self, callback: F) -> Command<Self, F> {
-        Command { parser: self, callback }
+        Command {
+            parser: self,
+            callback,
+        }
     }
 }
 
@@ -61,7 +65,7 @@ impl<T> CommandBuilder for T where T: Parser + Sized {}
 
 impl<P, F> AddToDispatcher for Command<P, F>
 where
-    P: AddToDispatcher
+    P: AddToDispatcher,
 {
     fn add_to_dispatcher(&self, parent: Option<NodeId>, dispatcher: &mut Dispatcher) -> NodeId {
         let node_id = self.parser.add_to_dispatcher(parent, dispatcher);

@@ -1,12 +1,7 @@
-mod command;
+pub mod command;
 mod generic;
 
-use std::marker::PhantomData;
-use std::{borrow::Borrow, fmt, todo};
-
-use anyhow::{bail, Result};
-use command::{And, Argument, Space};
-use generic::{Func, Product, Tuple};
+use anyhow::Result;
 
 type NodeId = usize;
 type CommandId = usize;
@@ -61,8 +56,13 @@ impl Dispatcher {
     pub fn find(&self, input: &str) -> Option<CommandId> {
         let mut input = input;
 
-        let mut stack = self.root.clone();
-        while let Some(node_id) = stack.pop() {
+        let mut stack = self
+            .root
+            .clone()
+            .into_iter()
+            .map(|child| (input, child))
+            .collect::<Vec<_>>();
+        while let Some((mut input, node_id)) = stack.pop() {
             let node = &self.nodes[node_id];
             if node.validate(&mut input) {
                 if input.is_empty() {
@@ -70,7 +70,7 @@ impl Dispatcher {
                         return Some(command_id);
                     }
                 } else {
-                    stack.extend(node.children.iter());
+                    stack.extend(node.children.iter().map(|child_id| (input, *child_id)));
                 }
             }
         }
@@ -84,8 +84,12 @@ pub trait AddToDispatcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Dispatcher, AddToDispatcher, command::{Command, literal}};
-    use crate::command::{CommandBuilder};
+
+    use crate::command::{And, Argument, CommandBuilder};
+    use crate::{
+        command::{literal, Command},
+        AddToDispatcher, Dispatcher,
+    };
 
     #[test]
     fn simple() {
@@ -99,12 +103,22 @@ mod tests {
 
         let mut dispatcher = Dispatcher::default();
         command.add_to_dispatcher(None, &mut dispatcher);
+        let command_id = dispatcher.find("tp 10 11 12");
+        assert!(command_id.is_some())
+    }
+    #[test]
+    fn simple_opt() {
+        let command = literal("tp")
+            .opt_arg()
+            .build(|x: Option<u32>| move |_state: &mut u32| println!("{:?}", x));
 
-        let commands = vec![("my_awesome_plugin", 0)];
+        (Command::call(&command, "tp 10").unwrap())(&mut 0);
+
+        let mut dispatcher = Dispatcher::default();
+        command.add_to_dispatcher(None, &mut dispatcher);
 
         let command_id = dispatcher.find("tp 10 11 12");
-
-        let (plugin_id, command_id) = commands[command_id.unwrap()];
+        assert!(command_id.is_some())
     }
 }
 

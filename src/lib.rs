@@ -39,11 +39,15 @@ impl Node {
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(validator:???,children:{:?},command:{:?})", self.children,self.command)
+        write!(
+            f,
+            "(validator:???,children:{:?},command:{:?})",
+            self.children, self.command
+        )
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct Dispatcher {
     root: Vec<NodeId>,
     nodes: Vec<Node>,
@@ -51,10 +55,9 @@ pub struct Dispatcher {
 
 impl Dispatcher {
     pub fn add(&mut self, parent: Option<NodeId>, node: Node) -> NodeId {
-
         let node_id = self.nodes.len();
         self.nodes.push(node);
-        
+
         if let Some(parent_id) = parent {
             self.nodes[parent_id].children.push(node_id);
         } else {
@@ -73,17 +76,16 @@ impl Dispatcher {
             .map(|child| (input, child))
             .collect::<Vec<_>>();
 
-
-        println!("First Stack: {:?}",self.root);
+        println!("First Stack: {:?}", self.root);
         //println!("Non-Root-Nodes: {:?}",self.nodes.iter().enumerate().filter(|(i,_)| self.root.contains(i)).map(|(_,n)| n.command).collect::<Vec<_>>());
         //println!("{:?}",self);
-        
+
         while let Some((mut input, node_id)) = stack.pop() {
-            println!("Stack: {:?} (input:{}, node_id:{})",stack,input,node_id);
+            println!("Stack: {:?} (input:{}, node_id:{})", stack, input, node_id);
 
             let node = &self.nodes[node_id];
             if node.validate(&mut input) {
-                println!("input_after_validate_ {}",input);
+                println!("input_after_validate_ {}", input);
                 let input = input.trim_start();
                 if input.is_empty() {
                     if let Some(command_id) = node.command {
@@ -126,7 +128,7 @@ mod tests {
         command.add_to_dispatcher(None, &mut dispatcher);
         let command_id = dispatcher.find("tp 10 11 12");
         assert!(command_id.is_some())
-    }   
+    }
     #[test]
     fn simple_opt() {
         let command = literal("tp")
@@ -147,7 +149,7 @@ mod tests {
         let command = literal("tp")
             .opt_arg()
             .arg()
-            .build(|x: Option<u32>, y:u32| move |_state: &mut u32| println!("{:?}, {:?}", x, y));
+            .build(|x: Option<u32>, y: u32| move |_state: &mut u32| println!("{:?}, {:?}", x, y));
 
         (Command::call(&command, "tp 10 ").unwrap())(&mut 0);
 

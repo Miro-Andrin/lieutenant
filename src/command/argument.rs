@@ -1,16 +1,15 @@
 use std::{fmt, marker::PhantomData, str::FromStr};
 
-use anyhow::{anyhow};
+use anyhow::anyhow;
 
 use crate::{regex_validator, AddToDispatcher, Dispatcher, Node, NodeId, Validator};
 
-use super::{Parser, Result,OptArgument};
+use super::{OptArgument, Parser, Result};
 
 #[derive(Debug)]
 pub struct Argument<A> {
     pub(crate) argument: PhantomData<A>,
 }
-
 
 impl<A> Clone for Argument<A> {
     fn clone(&self) -> Self {
@@ -41,7 +40,6 @@ where
     }
 }
 
-
 pub fn argument<A>() -> Argument<A> {
     Argument {
         argument: Default::default(),
@@ -57,7 +55,6 @@ where
     }
 }
 
-
 impl<T> fmt::Display for Argument<T>
 where
     T: Integer,
@@ -67,9 +64,6 @@ where
         Ok(())
     }
 }
-
-
-
 
 pub trait Integer {}
 
@@ -85,4 +79,3 @@ macro_rules! integer {
 }
 
 integer![u8, i8, u16, i16, u32, i32, u64, i64, u128, i128,];
-

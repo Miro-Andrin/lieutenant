@@ -16,8 +16,11 @@ where
 {
     type Extract = (F::Output,);
 
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
-        let args = self.parser.parse(input)?;
-        Ok((self.map.call(args),))
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b,
+    {
+        let (args, input) = self.parser.parse(input)?;
+        Ok(((self.map.call(args),), input))
     }
 }

@@ -19,7 +19,9 @@ use crate::{
 pub trait Parser {
     type Extract: Tuple;
 
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract>;
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b;
 }
 
 pub struct Command<P, F> {
@@ -33,7 +35,7 @@ where
     F: Func<P::Extract>,
 {
     pub fn call(&self, mut input: &str) -> Result<F::Output> {
-        let args = self.parser.parse(&mut input)?;
+        let (args, _output) = self.parser.parse(&mut input)?;
         Ok(self.callback.call(args))
     }
 }

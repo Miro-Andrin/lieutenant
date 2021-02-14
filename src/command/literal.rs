@@ -15,7 +15,10 @@ impl Parser for Literal {
     type Extract = ();
 
     #[inline]
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b,
+    {
         let mut value_lower = self.value.chars().flat_map(|c| c.to_lowercase());
 
         let x: Option<usize> = input
@@ -29,14 +32,29 @@ impl Parser for Literal {
                     None
                 }
             });
-
+        
         if value_lower.next().is_some() {
+            // Then the length of input was shorter then the literal. 
             bail!("")
         }
 
+        // If the next char is not a space then the literal did not match. 
+        // unless the rest of input is empty.
+        //TODO
+
         if let Some(end) = x {
-            *input = &input[end..];
-            Ok(())
+
+            match input.chars().into_iter().nth(end) {
+                Some(c) => {
+                    if !c.is_whitespace() {
+                        bail!("Next char was not whitespace after literal.")
+                    } 
+                }
+                None => {}
+            }
+
+
+            Ok(((), &input[end..]))
         } else {
             bail!("")
         }
@@ -57,8 +75,12 @@ pub fn literal(literal: &str) -> Literal {
 }
 
 impl Validator for Literal {
-    fn validate(&self, input: &mut &str) -> bool {
-        self.parse(input).is_ok()
+    fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str) 
+    where 'a : 'b {
+        match self.parse(input) {
+            Ok((_,out)) => {(true, out)}
+            Err(_) => (false, input)
+        }
     }
 }
 
@@ -79,9 +101,13 @@ mod tests {
         };
 
         let input = &mut "tp 10 10 10";
-        assert!(lit.parse(input).is_ok());
 
-        assert_eq!(input, &" 10 10 10");
+
+        if let Ok((_, output)) = lit.parse(input) {
+            assert_eq!(output.trim_start(), "10 10 10");
+        } else {
+            assert!(false)
+        }
     }
 
     #[test]
@@ -92,7 +118,6 @@ mod tests {
 
         let input = &mut "";
         assert!(lit.parse(input).is_err());
-        assert_eq!(input, &"");
     }
 
     #[test]
@@ -101,9 +126,8 @@ mod tests {
             value: String::from("tp"),
         };
 
-        let input = &mut "temp";
+        let input = &mut "tpme";
         assert!(lit.parse(input).is_err());
-        assert_eq!(input, &"temp");
     }
 
     #[test]
@@ -114,6 +138,5 @@ mod tests {
 
         let input = &mut "t";
         assert!(lit.parse(input).is_err());
-        assert_eq!(input, &"t");
     }
 }

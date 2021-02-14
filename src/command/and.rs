@@ -22,21 +22,22 @@ where
     type Extract = CombinedTuples<A::Extract, B::Extract>;
 
     #[inline]
-    /// Note: On failure the input can be left in a bad state. So if you need to use the input after an
-    /// error its your responisbillity to have stored a copy.
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
-        let a = self.a.parse(input)?;
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b,
+    {
+        let (a, input) = self.a.parse(input)?;
 
         // Removes at least one space.
         let prev_len = input.len();
-        *input = input.trim_start();
+        let input = input.trim_start();
         if input.len() == prev_len {
             bail!("Filed in midle of And.")
         }
 
-        let b = self.b.parse(input)?;
+        let (b, input) = self.b.parse(input)?;
 
-        Ok(a.combine(b))
+        Ok((a.combine(b), input))
     }
 }
 
@@ -82,11 +83,13 @@ mod tests {
 
         let x = And { a: lit1, b: lit2 };
 
-        let input = &mut "tp tp a";
+        let input = "tp tp a";
 
-        assert!(x.parse(input).is_ok());
-
-        assert_eq!(input, &" a");
+        if let Ok((_, output)) = x.parse(input) {
+            assert_eq!(output.trim_start(), "a");
+        } else {
+            assert!(false)
+        }
     }
 
     #[test]
@@ -103,9 +106,11 @@ mod tests {
 
         let input = &mut "tp tp";
 
-        assert!(x.parse(input).is_ok());
-
-        assert_eq!(input, &"");
+        if let Ok((_, output)) = x.parse(input) {
+            assert_eq!(output.trim_start(), "");
+        } else {
+            assert!(false)
+        }
     }
 
     #[test]
@@ -123,8 +128,5 @@ mod tests {
         let input = &mut "tptp";
 
         assert!(x.parse(input).is_err());
-
-        //
-        assert_eq!(input, &"tp");
     }
 }

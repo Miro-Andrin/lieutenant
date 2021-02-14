@@ -23,13 +23,16 @@ where
 {
     type Extract = (Option<A>,);
 
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
-        let original = *input;
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b,
+    {
+        let original = input;
         match argument::<A>().parse(input) {
-            Ok((result,)) => Ok((Some(result),)),
+            Ok(((result,), output)) => Ok(((Some(result),), output)),
             Err(_) => {
-                *input = original;
-                Ok((None,))
+                //let input = original;
+                Ok(((None,), original))
             }
         }
     }
@@ -54,12 +57,12 @@ impl<T> Validator for OptArgument<T>
 where
     Argument<T>: Validator,
 {
-    fn validate(&self, input: &mut &str) -> bool {
-        let original = *input;
-        if !argument::<T>().validate(input) {
-            *input = original;
+    fn validate<'a,'b>(&self, input: &'a str) -> (bool, &'b str) where 'a : 'b {
+        let (valid, output) = argument::<T>().validate(input);
+        if valid {
+            (true, output)
+        } else {
+            (true, input)
         }
-
-        true
     }
 }

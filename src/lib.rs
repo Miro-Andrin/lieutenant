@@ -9,7 +9,8 @@ type NodeId = usize;
 type CommandId = usize;
 
 pub trait Validator {
-    fn validate(&self, input: &mut &str) -> bool;
+    fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str) 
+    where 'a : 'b;
 }
 pub struct Node {
     validator: Box<dyn Validator>,
@@ -18,7 +19,7 @@ pub struct Node {
 }
 
 impl Validator for Node {
-    fn validate(&self, input: &mut &str) -> bool {
+    fn validate<'a,'b>(&self, input: &'a str) -> (bool, &'b str) where 'a : 'b {
         self.validator.validate(input)
     }
 }
@@ -80,21 +81,34 @@ impl Dispatcher {
         //println!("Non-Root-Nodes: {:?}",self.nodes.iter().enumerate().filter(|(i,_)| self.root.contains(i)).map(|(_,n)| n.command).collect::<Vec<_>>());
         //println!("{:?}",self);
 
-        while let Some((mut input, node_id)) = stack.pop() {
+        while let Some((input, node_id)) = stack.pop() {
             println!("Stack: {:?} (input:{}, node_id:{})", stack, input, node_id);
 
             let node = &self.nodes[node_id];
-            if node.validate(&mut input) {
-                println!("input_after_validate_ {}", input);
-                let input = input.trim_start();
-                if input.is_empty() {
-                    if let Some(command_id) = node.command {
-                        return Some(command_id);
+            match node.validate(input) {
+                (true, out) => {
+                    println!("input_after_validate_ {}", input);
+                    if out.trim_start().is_empty() {
+                        if let Some(command_id) = node.command {
+                            return Some(command_id);
+                        }
+                    } else {
+                        stack.extend(node.children.iter().map(|child_id| (out.trim_start(), *child_id)));
                     }
-                } else {
-                    stack.extend(node.children.iter().map(|child_id| (input, *child_id)));
-                }
+                } 
+                (false, _) => {}
             }
+            // if node.validate(&input) {
+            //     println!("input_after_validate_ {}", input);
+            //     let input = input.trim_start();
+            //     if input.is_empty() {
+            //         if let Some(command_id) = node.command {
+            //             return Some(command_id);
+            //         }
+            //     } else {
+            //         stack.extend(node.children.iter().map(|child_id| (input, *child_id)));
+            //     }
+            // }
         }
 
         None
@@ -108,7 +122,7 @@ pub trait AddToDispatcher {
 #[cfg(test)]
 mod tests {
 
-    use crate::command::{And, Argument, CommandBuilder};
+    use crate::command::CommandBuilder;
     use crate::{
         command::{literal, Command},
         AddToDispatcher, Dispatcher,
@@ -120,7 +134,9 @@ mod tests {
             .arg()
             .arg()
             .arg()
-            .build(|x: u32, y: u32, z: u32| move |_state: &mut u32| println!("{} {} {}", x, y, z));
+            .build(|x: u32, y: u32, z: u32| {
+                move |_state: &mut u32| println!("Command call result: {} {} {}", x, y, z)
+            });
 
         (Command::call(&command, "tp 10 11 12").unwrap())(&mut 0);
 
@@ -156,7 +172,7 @@ mod tests {
         let mut dispatcher = Dispatcher::default();
         command.add_to_dispatcher(None, &mut dispatcher);
 
-        let command_id = dispatcher.find("tp 10 ");
+        let command_id = dispatcher.find("tp 10");
         assert!(command_id.is_some())
     }
 }
@@ -165,17 +181,17 @@ mod tests {
 macro_rules! regex_validator {
     ($ident:ty, $regex:literal) => {
         impl Validator for $ident {
-            fn validate(&self, input: &mut &str) -> bool {
+            fn validate<'a,'b>(&self, input: &'a str) -> (bool, &'b str) where 'a : 'b {
                 use lazy_static::lazy_static;
                 use regex::Regex;
                 lazy_static! {
                     static ref RE: Regex = Regex::new($regex).unwrap();
                 };
                 if let Some(m) = RE.find(input) {
-                    *input = &input[m.end()..];
-                    true
+                    let input = &input[m.end()..];
+                    (true, input)
                 } else {
-                    false
+                    (false, input)
                 }
             }
         }

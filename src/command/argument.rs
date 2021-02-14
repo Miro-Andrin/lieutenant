@@ -4,7 +4,7 @@ use anyhow::anyhow;
 
 use crate::{regex_validator, AddToDispatcher, Dispatcher, Node, NodeId, Validator};
 
-use super::{OptArgument, Parser, Result};
+use super::{Parser, Result};
 
 #[derive(Debug)]
 pub struct Argument<A> {
@@ -26,17 +26,21 @@ where
     type Extract = (A,);
 
     #[inline]
-    fn parse(&self, input: &mut &str) -> Result<Self::Extract> {
-        let mut arg = *input;
+    fn parse<'a, 'b>(&self, input: &'a str) -> Result<(Self::Extract, &'b str)>
+    where
+        'a: 'b,
+    {
+        let mut arg = input;
 
-        if let Some((i, _)) = input.char_indices().find(|(_, c)| c.is_whitespace()) {
+        let input = if let Some((i, _)) = input.char_indices().find(|(_, c)| c.is_whitespace()) {
             arg = &input[..i];
-            *input = &input[i..];
-        }
+            &input[i..]
+        } else {
+            input
+        };
 
         let arg = A::from_str(&arg).map_err(|_| anyhow!("could not parse argument"))?;
-
-        Ok((arg,))
+        Ok(((arg,), input))
     }
 }
 

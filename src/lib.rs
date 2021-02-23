@@ -1,16 +1,18 @@
 pub mod command;
+pub mod command_tree;
 mod generic;
+pub mod parser;
+mod regex;
 
 use std::fmt;
-
-use anyhow::Result;
 
 type NodeId = usize;
 type CommandId = usize;
 
 pub trait Validator {
-    fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str) 
-    where 'a : 'b;
+    fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
+    where
+        'a: 'b;
 }
 pub struct Node {
     validator: Box<dyn Validator>,
@@ -19,7 +21,10 @@ pub struct Node {
 }
 
 impl Validator for Node {
-    fn validate<'a,'b>(&self, input: &'a str) -> (bool, &'b str) where 'a : 'b {
+    fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
+    where
+        'a: 'b,
+    {
         self.validator.validate(input)
     }
 }
@@ -93,9 +98,13 @@ impl Dispatcher {
                             return Some(command_id);
                         }
                     } else {
-                        stack.extend(node.children.iter().map(|child_id| (out.trim_start(), *child_id)));
+                        stack.extend(
+                            node.children
+                                .iter()
+                                .map(|child_id| (out.trim_start(), *child_id)),
+                        );
                     }
-                } 
+                }
                 (false, _) => {}
             }
             // if node.validate(&input) {
@@ -122,66 +131,69 @@ pub trait AddToDispatcher {
 #[cfg(test)]
 mod tests {
 
-    use crate::command::CommandBuilder;
-    use crate::{
-        command::{literal, Command},
-        AddToDispatcher, Dispatcher,
-    };
+    // //use crate::command::CommandBuilder;
+    // use crate::{
+    //     //command::{literal, Command},
+    //     AddToDispatcher, Dispatcher,
+    // };
 
-    #[test]
-    fn simple() {
-        let command = literal("tp")
-            .arg()
-            .arg()
-            .arg()
-            .build(|x: u32, y: u32, z: u32| {
-                move |_state: &mut u32| println!("Command call result: {} {} {}", x, y, z)
-            });
+    // #[test]
+    // fn simple() {
+    //     let command = literal("tp")
+    //         .arg()
+    //         .arg()
+    //         .arg()
+    //         .build(|x: u32, y: u32, z: u32| {
+    //             move |_state: &mut u32| println!("Command call result: {} {} {}", x, y, z)
+    //         });
 
-        (Command::call(&command, "tp 10 11 12").unwrap())(&mut 0);
+    //     (Command::call(&command, "tp 10 11 12").unwrap())(&mut 0);
 
-        let mut dispatcher = Dispatcher::default();
-        command.add_to_dispatcher(None, &mut dispatcher);
-        let command_id = dispatcher.find("tp 10 11 12");
-        assert!(command_id.is_some())
-    }
-    #[test]
-    fn simple_opt() {
-        let command = literal("tp")
-            .opt_arg()
-            .build(|x: Option<u32>| move |_state: &mut u32| println!("{:?}", x));
+    //     let mut dispatcher = Dispatcher::default();
+    //     command.add_to_dispatcher(None, &mut dispatcher);
+    //     let command_id = dispatcher.find("tp 10 11 12");
+    //     assert!(command_id.is_some())
+    // }
+    // #[test]
+    // fn simple_opt() {
+    //     let command = literal("tp")
+    //         .opt_arg()
+    //         .build(|x: Option<u32>| move |_state: &mut u32| println!("{:?}", x));
 
-        (Command::call(&command, "tp 10").unwrap())(&mut 0);
+    //     (Command::call(&command, "tp 10").unwrap())(&mut 0);
 
-        let mut dispatcher = Dispatcher::default();
-        command.add_to_dispatcher(None, &mut dispatcher);
+    //     let mut dispatcher = Dispatcher::default();
+    //     command.add_to_dispatcher(None, &mut dispatcher);
 
-        let command_id = dispatcher.find("tp 10");
-        assert!(command_id.is_some())
-    }
+    //     let command_id = dispatcher.find("tp 10");
+    //     assert!(command_id.is_some())
+    // }
 
-    #[test]
-    fn simple_opt2() {
-        let command = literal("tp")
-            .opt_arg()
-            .arg()
-            .build(|x: Option<u32>, y: u32| move |_state: &mut u32| println!("{:?}, {:?}", x, y));
+    // #[test]
+    // fn simple_opt2() {
+    //     let command = literal("tp")
+    //         .opt_arg()
+    //         .arg()
+    //         .build(|x: Option<u32>, y: u32| move |_state: &mut u32| println!("{:?}, {:?}", x, y));
 
-        (Command::call(&command, "tp 10 ").unwrap())(&mut 0);
+    //     (Command::call(&command, "tp 10 ").unwrap())(&mut 0);
 
-        let mut dispatcher = Dispatcher::default();
-        command.add_to_dispatcher(None, &mut dispatcher);
+    //     let mut dispatcher = Dispatcher::default();
+    //     command.add_to_dispatcher(None, &mut dispatcher);
 
-        let command_id = dispatcher.find("tp 10");
-        assert!(command_id.is_some())
-    }
+    //     let command_id = dispatcher.find("tp 10");
+    //     assert!(command_id.is_some())
+    // }
 }
 
 #[macro_export]
 macro_rules! regex_validator {
     ($ident:ty, $regex:literal) => {
         impl Validator for $ident {
-            fn validate<'a,'b>(&self, input: &'a str) -> (bool, &'b str) where 'a : 'b {
+            fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
+            where
+                'a: 'b,
+            {
                 use lazy_static::lazy_static;
                 use regex::Regex;
                 lazy_static! {

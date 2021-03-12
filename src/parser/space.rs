@@ -15,6 +15,18 @@ impl Default for OnceState {
 pub struct OneOrMoreSpace {}
 pub struct MaybeSpaces{}
 
+impl MaybeSpaces {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
+
+impl OneOrMoreSpace {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
+
 impl Parser for OneOrMoreSpace {
     type Extract = ();
 

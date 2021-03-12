@@ -1,582 +1,633 @@
-use super::*;
-
-use crate::graph::{Node, RootNode};
 use indexmap::IndexSet;
-use regex_to_nfa::regex_to_nfa;
-use std::collections::BTreeSet;
+//use regex_to_nfa::regex_to_nfa;
+use super::byteclass::{ByteClass, ByteClassId};
+use super::stateid::StateId;
+use std::{collections::{BTreeSet, HashSet}, convert::TryInto, fmt::Debug, hash, iter, mem::{self}, ops::{Index, IndexMut, Range}, usize};
 
-#[derive(Debug, Clone)]
-pub struct State {
-    pub(crate) table: Vec<Vec<StateId>>,
-    pub(crate) class: ByteClassId,
+#[derive(Debug, Clone, Default)]
+pub struct NfaState<A> {
+    // The first element should always be present. This is so that the zeros in the byteclass point to something.
+    // The first element would almost always be a empty vec.  This is so that the zeros in the byteclass would signal a failed pars.
+    table: Vec<Vec<StateId>>,
+
+    // A byteclass is basically a [u8; 256]. If it[6] = 1, then from the state 'self' there are outgoing edges containing 6. These edges go from
+    // self to 'x' for x in self.table[1].
+    class: ByteClassId,
+
     pub(crate) epsilons: Vec<StateId>,
+    pub(crate) assosiations: HashSet<A>,
 }
 
-impl Index<u8> for State {
+/// Returns the states one would get to from self if the input u8 was 'index'.
+impl<A> Index<u8> for NfaState<A> {
     type Output = Vec<StateId>;
     fn index(&self, index: u8) -> &Self::Output {
         &self.table[index as usize]
     }
 }
 
-impl IndexMut<u8> for State {
+impl<A: Eq + std::hash::Hash> IndexMut<u8> for NfaState<A> {
     fn index_mut(&mut self, index: u8) -> &mut Self::Output {
         &mut self.table[index as usize]
     }
 }
 
-impl State {
+impl<A: Eq + Debug + std::hash::Hash + Default + Copy> Default for NFA<A> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl<A: Eq + std::hash::Hash> NfaState<A> {
     fn empty() -> Self {
         Self {
-            ///
             table: vec![vec![]],
             class: ByteClassId(0),
             epsilons: vec![],
+            assosiations: HashSet::new(),
         }
     }
 
-    fn push_epsilon(&mut self, to: StateId) {
-        self.epsilons.push(to);
+    fn associate_with(&mut self, value: A) {
+        self.assosiations.insert(value);
+    }
+
+    fn extend_association_with(&mut self, values: HashSet<A>) {
+        self.assosiations.extend(values)
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct NFA {
-    // Reduce to a single init state, namely the root
-    pub(crate) start: StateId,
-    pub(crate) end: StateId,
-    /// Represents the nodes in the NFA
-    pub(crate) states: Vec<State>,
-    /// Sort of represents the edges in the NFA.
-    pub(crate) translations: IndexSet<ByteClass>,
+pub struct NFA<A: std::hash::Hash> {
+    /// Represents the nodes in the NFA.
+    pub(crate) states: Vec<NfaState<A>>,
+
+    /// Sort of represents the edges in the NFA. Every NfaState has a Vec of its neighbours. The byteclass values are used as a ofsett
+    /// into this neighbouring Vec. This is a space saving optimisation. The first value is always a completly empty byteclass.
+    translations: IndexSet<ByteClass>,
+
+    /// These are the termination states of the NFA. If a stream of bytes ends on one of these states, we consider it a
+    /// sucsess.
+    ends: Vec<StateId>,
 }
 
-impl Index<ByteClassId> for NFA {
+impl<A: std::hash::Hash> Index<ByteClassId> for NFA<A> {
     type Output = ByteClass;
     fn index(&self, ByteClassId(index): ByteClassId) -> &Self::Output {
         &self.translations[index as usize]
     }
 }
 
-impl Index<StateId> for NFA {
-    type Output = State;
+impl<A: std::hash::Hash> Index<StateId> for NFA<A> {
+    type Output = NfaState<A>;
     fn index(&self, StateId(index): StateId) -> &Self::Output {
         &self.states[index as usize]
     }
 }
 
-impl IndexMut<StateId> for NFA {
+impl<A: std::hash::Hash> IndexMut<StateId> for NFA<A> {
     fn index_mut(&mut self, StateId(index): StateId) -> &mut Self::Output {
         &mut self.states[index as usize]
     }
 }
 
-impl Index<(StateId, Option<u8>)> for NFA {
+impl<A: std::hash::Hash> Index<(StateId, Option<u8>)> for NFA<A> {
     type Output = Vec<StateId>;
     fn index(&self, (id, step): (StateId, Option<u8>)) -> &Self::Output {
         let state = &self[id];
         match step {
-            Some(b) => &state[self[state.class][b]],
+            Some(b) => &state[self[state.class.clone()][b]],
             None => &state.epsilons,
         }
     }
 }
 
-impl Index<(StateId, u8)> for NFA {
+impl<A: std::hash::Hash> Index<(StateId, u8)> for NFA<A> {
     type Output = Vec<StateId>;
     fn index(&self, (id, b): (StateId, u8)) -> &Self::Output {
         let state = &self[id];
-        &state[self[state.class][b]]
+        &state[self[state.class.clone()][b]]
     }
 }
 
-impl NFA {
-    /// Matches the empty string
+impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
+    /// Does not match anything, not even a enpty string.
     pub(crate) fn empty() -> Self {
         Self {
-            start: StateId::of(0),
-            states: vec![State::empty()],
-            translations: iter::once(ByteClass::empty()).collect(),
-            end: StateId::of(0),
+            states: vec![NfaState::empty()],
+            translations: iter::once(ByteClass::empty()).collect::<IndexSet<ByteClass>>(),
+            ends: vec![],
         }
     }
 
-    pub(crate) fn literal(lit: &str) -> Self {
-        let mut nfa = NFA::empty();
-        let end = lit.bytes().fold(nfa.start, |id, c| {
-            let next = nfa.push_state();
-            let byte_class = ByteClass::from(c);
-            nfa.set_transitions(id, byte_class, vec![vec![], vec![next], vec![]]);
-            next
-        });
-        nfa.end = end;
-        nfa
+    pub(crate) fn is_empty(&self) -> bool {
+        (self.states.len() == 1) && (self.translations.len() == 1) && (self.ends.len() == 0)
     }
 
-    pub(crate) fn single_u8() -> Self {
-        let mut nfa = NFA::empty();
-        nfa.end = nfa.push_state();
-        let new_byteclass = nfa.push_class(ByteClass::full());
-        nfa.set_transitions(
-            nfa.start,
-            ByteClass::full(),
-            vec![vec![], vec![nfa.end], vec![]],
-        );
-        nfa
+    pub fn is_end(&self, id: &StateId) -> bool {
+        self.ends.contains(id)
     }
 
-    fn push_state(&mut self) -> StateId {
-        let id = StateId::of(self.states.len() as u32);
-        self.states.push(State::empty());
-        id
+    pub(crate) fn push_state(&mut self) -> StateId {
+        self.states.push(NfaState::empty());
+        StateId(self.states.len() as u32 - 1)
     }
 
-    // Should return Map<StateId, StateId> can internally be Vec<StateId>
-    fn extend(&mut self, other: &Self) -> (StateId, StateId) {
-        let offset = self.states.len() as u32;
-        let mut states = mem::take(&mut self.states);
-        states.extend(other.states.iter().map(|state| {
-            let mut state = state.clone();
-            state
+    pub(crate) fn push_end(&mut self, state: StateId) {
+        self.ends.push(state)
+    }
+
+    pub(crate) fn push_connection(&mut self, from: StateId, to: StateId, c: u8) {
+        let mut state = self.index(from.clone()).clone();
+        //state.push_connection(self,to,c);
+
+        let byteclass = &self[state.class.clone()];
+
+        match byteclass[c] {
+            0 => {
+                // This means that self has no existing connection for input 'c'.
+                state.table.push(Vec::with_capacity(1));
+                let index = state.table.len() - 1;
+                state.table[index].push(to);
+
+                // Update class
+                let mut new_byteclass = byteclass.clone();
+                new_byteclass.set(c, index as u8);
+                let (class_index, _) = self.translations.insert_full(new_byteclass);
+                state.class = ByteClassId::from(class_index as u16);
+
+                // We could now run a GC like procedure on the nfa, because nfa.transitions might contain a unused byteclass.
+                // this might be reasonable to do, but since we are anyways ging to discard the nfa and replace it by a dfa,
+                // i would not worry about it to begin with.
+            }
+            x => {
+                // This means that there already exists index
+                state.table[x as usize].push(to);
+            }
+        };
+
+        self[from] = state;
+    }
+
+    pub(crate) fn push_connections<Itr : IntoIterator<Item = u8>>(&mut self, from: StateId, to: StateId, values : Itr) {
+        let existing_byteclass = &self[self[from].class.clone()];
+        let mut new_byteclass = existing_byteclass.clone();
+
+        for c in values {
+            match new_byteclass[c] {
+                0 => {
+                    // This means that self has no existing connection for input c
+                    self[from].table.push(Vec::with_capacity(1));
+                    let index = self.states[from.0 as usize].table.len() - 1;
+                    self[from].table[index].push(to);
+                    // Cast is safe because len of table is always 256
+                    new_byteclass[c] = index as u8;
+                }
+                x => {
+                    // This means that there already exists a connection from self to 'to'
+                    self[from].table[x as usize].push(to);
+                }
+            }
+        }
+
+        let (class_index, _) = self.translations.insert_full(new_byteclass);
+        self[from].class = ByteClassId::from(class_index as u16);
+    }
+
+    pub(crate) fn push_epsilon(&mut self, from: StateId, to: StateId) {
+        let state = self.index_mut(from);
+        state.epsilons.push(to)
+    }
+
+    /// Makes every end state in self have a epsilon transition to the 'other' nfa.
+    /// Note how the end states are modified, so this method does not preserve associated values.
+    pub fn followed_by(&mut self, mut other: NFA<A>) -> anyhow::Result<()> {
+        if self.is_empty() {
+            *self = other;
+            return Ok(());
+        } else if other.is_empty() {
+            return Ok(());
+        }
+
+        // If self has a single end state, then we can forgo adding a epsilon transition.
+        // this optimisation is probably not nessesary to think about because in the convertion from nfa
+        // to dfa it is optimised away anyways. It would however probably make that step go faster.
+
+        let state_ofset = self.states.len();
+
+        for other_index in 0..other.states.len() {
+            let mut state = mem::take(other.states.index_mut(other_index));
+
+            // When adding the states from 'other' all the StateId's are shifted by 'state_ofset'
+            state.table = state
                 .table
                 .iter_mut()
-                .for_each(|ids| ids.iter_mut().for_each(|id| *id = id.add(offset)));
+                .map(|vec| {
+                    vec.iter_mut()
+                        .map(|id| id.add(state_ofset))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
 
-            state
+            // When adding the state from 'other' we need to add its byteclass. We can however not just shift the byteclassid by 'state_ofset', because
+            // the byteclass might already be present in the 'self' nfa's  byteclass.
+            let byteclass = other.index(state.class);
+            let (i, _) = self.translations.insert_full(byteclass.clone());
+            state.class = ByteClassId(i.try_into()?);
+
+            // Update epsilons, by shifting them by state_ofset
+            // @TODO handle convetion error from add.
+            state.epsilons = state
                 .epsilons
-                .iter_mut()
-                .for_each(|id| *id = id.add(offset));
+                .into_iter()
+                .map(|e| e.add(state_ofset))
+                .collect();
 
-            let byte_class = &other[state.class];
-            let class_id = self.push_class(byte_class.clone());
-            state.class = class_id;
-            state
-        }));
-
-        self.states = states;
-
-        (other.start.add(offset), other.end.add(offset))
-    }
-
-    pub(crate) fn repeat(mut self) -> Self {
-        let new_start = self.push_state();
-        let new_end = self.push_state();
-        let old_start = self.start;
-        let old_end = self.end;
-
-        self.start = new_start;
-        self.end = new_end;
-
-        let new_start = &mut self[new_start];
-        new_start.push_epsilon(new_end);
-        new_start.push_epsilon(old_start);
-
-        let old_end = &mut self[old_end];
-        old_end.push_epsilon(new_end);
-        old_end.push_epsilon(old_start);
-
-        self
-    }
-
-    pub(crate) fn not(mut self) -> Self {
-        let len = self.states.len();
-        let new_end = self.push_state();
-        for (index, state) in self.states.iter_mut().enumerate().take(len) {
-            let state_id = StateId::of(index as u32);
-            if self.end == state_id {
-                continue;
-            }
-            state.push_epsilon(new_end);
+            self.states.push(state);
         }
-        self.end = new_end;
-        self
-    }
 
-    // TODO: Map<StateId, StateId>
-    pub(crate) fn union(mut self, other: &Self) -> Self {
-        let new_start = self.push_state();
-        let new_end = self.push_state();
-        let old_start = self.start;
-        let old_end = self.end;
-
-        self.start = new_start;
-        self.end = new_end;
-
-        let (other_start, other_end) = self.extend(other);
-
-        let new_start = &mut self[new_start];
-        new_start.push_epsilon(old_start);
-        new_start.push_epsilon(other_start);
-
-        let old_end = &mut self[old_end];
-        old_end.push_epsilon(new_end);
-
-        let other_end = &mut self[other_end];
-        other_end.push_epsilon(new_end);
-
-        self
-    }
-
-    // TODO: Map<StateId, StateId>
-    pub(crate) fn concat(mut self, other: &Self) -> Self {
-        let (other_start, other_end) = self.extend(other);
-        let end = self.end;
-        let end = &mut self[end];
-        end.push_epsilon(other_start);
-        self.end = other_end;
-        self
-    }
-
-    pub(crate) fn optional(mut self) -> Self {
-        let start = self.start;
-        let end = self.end;
-        let start = &mut self[start];
-        start.push_epsilon(end);
-        self
-    }
-
-    // TODO: FIXME
-    pub fn find(&self, input: &str) -> (Vec<StateId>, Vec<StateId>) {
-        let mut stack = vec![(self.start, input.as_bytes())];
-        let mut errs = vec![];
-        let mut oks = vec![];
-        while let Some((id, input)) = stack.pop() {
-            if let Some(b) = input.first() {
-                stack.extend(self[(id, *b)].iter().map(|id| (*id, &input[1..])));
-            } else if self.end == id {
-                oks.push(id);
-            } else {
-                errs.push(id);
-            }
-            stack.extend(self[id].epsilons.iter().map(|id| (*id, input)));
+        for old_end in self.ends.clone() {
+            self.push_epsilon(old_end.clone(), StateId(state_ofset as u32));
         }
-        (oks, errs)
-    }
-
-    pub(crate) fn epsilon_closure(&self, states: BTreeSet<StateId>) -> BTreeSet<StateId> {
-        let mut stack: Vec<_> = states.into_iter().collect();
-        let mut states = BTreeSet::new();
-        while let Some(q) = stack.pop() {
-            states.insert(q);
-            for q_e in self[q].epsilons.iter() {
-                if states.insert(*q_e) {
-                    stack.push(*q_e)
-                }
-            }
-        }
-        states
-    }
-
-    pub(crate) fn go(&self, states: &BTreeSet<StateId>, b: u8) -> BTreeSet<StateId> {
-        states
-            .iter()
-            .copied()
-            .flat_map(|id| self[(id, b)].iter().copied())
-            .collect()
-    }
-
-    pub(crate) fn push_class(&mut self, class: ByteClass) -> ByteClassId {
-        if let Some(id) = self.translations.get_index_of(&class) {
-            ByteClassId(id as u16)
-        } else {
-            let id = ByteClassId(self.translations.len() as u16);
-            self.translations.insert(class);
-            id
-        }
-    }
-
-    pub(crate) fn set_transitions<I, A>(
-        &mut self,
-        id: StateId,
-        byte_class: ByteClass,
-        transitions: I,
-    ) where
-        I: IntoIterator<Item = A>,
-        A: IntoIterator<Item = StateId>,
-    {
-        let class_id = self.push_class(byte_class);
-        self[id].class = class_id;
-        self[id].table = transitions
+        self.ends = other
+            .ends
             .into_iter()
-            .map(|ids| ids.into_iter().collect())
+            .map(|id| id.add(state_ofset))
             .collect();
+
+        Ok(())
     }
-}
 
-impl From<Range<u8>> for NFA {
-    fn from(range: Range<u8>) -> Self {
-        let mut buffer = [0; 4];
-        let mut classes = vec![ByteClass::empty(); 4];
-        for c in range {
-            let bytes = char::from(c).encode_utf8(&mut buffer);
-            for (i, b) in bytes.bytes().enumerate() {
-                if i + 1 < char::from(c).len_utf8() {
-                    classes[i][b] = 2;
-                } else {
-                    classes[i][b] = 1;
-                }
-            }
-        }
-
+    pub fn literal(lit: &str) -> Self {
         let mut nfa = NFA::empty();
-        let mut id = nfa.start;
+        let mut prev = StateId(0);
 
-        let classes: Vec<_> = classes
-            .into_iter()
-            .take_while(|class| !class.is_empty())
-            .collect();
-
-        let end = StateId::of(classes.len() as u32);
-
-        for class in classes {
-            let next_id = nfa.push_state();
-            if next_id == end {
-                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![]])
-            } else {
-                nfa.set_transitions(id, class, vec![vec![], vec![end], vec![next_id]]);
-            }
-            id = next_id;
+        for c in lit.bytes() {
+            let next = nfa.push_state();
+            nfa.push_connection(prev, next.clone(), c);
+            prev = next;
         }
 
-        nfa.end = id;
+        nfa.ends = vec![prev];
         nfa
     }
-}
 
-// TODO: move
-fn from_root<Ctx>(root: &RootNode<Ctx>, node: &Node<Ctx>) -> NFA {
-    let mut nfa = NFA::from(&node.kind);
+    // Returns ok, when there are further states to consume
+    fn find_step(
+        &self,
+        bytes: &[u8],
+        mut current_states: BTreeSet<StateId>,
+    ) -> (Result<BTreeSet<StateId>, BTreeSet<StateId>>, bool) {
+        // Follow epsilons all the way.
 
-    let mut children = node
-        .children
-        .iter()
-        .map(|node| from_root(root, &root[*node]));
+        current_states = self.epsilon_closure(current_states);
 
-    if let Some(first) = children.next() {
-        nfa = nfa.concat(&regex_to_nfa("\\s\\s*").unwrap());
-        nfa = nfa.concat(&children.fold(first, |acc, nfa| acc.union(&nfa)));
+        if bytes.is_empty() {
+            if self.ends.iter().any(|x| current_states.contains(x)) {
+                return (Ok(current_states), false);
+            } else {
+                return (Err(current_states), false);
+            }
+        }
+
+        let new_states = self.go(&current_states, bytes[0]);
+
+        if new_states.is_empty() && !bytes[1..].len() == 0 {
+            return (Err(new_states), false);
+        }
+
+        (Ok(new_states), true)
     }
 
-    nfa
+    pub fn find<T : AsRef<[u8]>>(&self, text: T) -> Result<BTreeSet<StateId>, BTreeSet<StateId>> {
+        let mut bytes = text.as_ref();
+        let mut current_states = iter::once(StateId::of(0)).collect::<BTreeSet<_>>();
+        loop {
+            match self.find_step(bytes, current_states) {
+                (Ok(x), false) => {
+                    return Ok(x
+                        .into_iter()
+                        .filter(|x| self.ends.contains(x))
+                        .collect::<BTreeSet<_>>())
+                }
+                (Err(x), false) => return Err(x),
+                (Ok(x), true) => {
+                    bytes = &bytes[1..];
+                    current_states = x;
+                }
+                (Err(_), true) => unreachable!(""),
+            }
+        }
+    }
+
+    pub fn repeat(self) -> anyhow::Result<Self> {
+        //    /–>––––––––––––––––––––––––––>\
+        // >(a) -> (b) -> [self] -> (c) ->((d))
+        //          \<-------------</
+
+        let mut nfa = NFA::<A>::empty();
+        let a = StateId(0);
+        let b = nfa.push_state();
+        let c = nfa.push_state();
+        let d = nfa.push_state();
+
+        nfa.push_epsilon(a.clone(), d.clone());
+        nfa.push_epsilon(a.clone(), b.clone());
+        nfa.ends = vec![b.clone()]; // Makes self connect with epsilon from b
+        nfa.followed_by(self)?;
+
+        // Makes self connecting to c
+        let ends = mem::take(&mut nfa.ends);
+        for end in ends {
+            nfa.push_epsilon(end.clone(), c.clone());
+            let assocs = mem::take(&mut nfa[end].assosiations);
+            nfa[d.clone()].extend_association_with(assocs);
+        }
+
+        nfa.push_epsilon(c.clone(), b);
+        nfa.push_epsilon(c, d.clone());
+
+        nfa.ends.push(d);
+
+        Ok(nfa)
+    }
+
+    pub fn or(self, other: NFA<A>) -> anyhow::Result<Self> {
+        //    /–>––[self]
+        // >(a)
+        //   \–>––[other]
+
+        let mut nfa = NFA::<A>::empty();
+        let a = StateId(0);
+
+        nfa.followed_by(self)?;
+
+        let ends = nfa.ends.clone();
+        nfa.ends = vec![a];
+        nfa.followed_by(other)?;
+        nfa.ends.extend(ends);
+
+        Ok(nfa)
+    }
+
+
+    pub fn assosiate(&mut self, id: StateId, value: A) -> anyhow::Result<()> {
+        self[id].associate_with(value);
+        Ok(())
+    }
+
+    pub fn assosiate_ends(&mut self, value: A) {
+        for e in &self.ends {
+            let end = &mut self.states[e.0 as usize];
+            end.associate_with(value);
+        }
+    }
+
+    pub fn assosiate_non_ends(&mut self, value: A) {
+        let ends = &self.ends;
+        for (id, state) in self.states.iter_mut().enumerate() {
+            let state_id = StateId::of(id);
+            if ends.contains(&state_id) {
+                continue;
+            }
+            state.associate_with(value);
+        }
+    }
+
+    fn end_assosiations(&self) -> HashSet<A> {
+        let mut result = HashSet::new();
+        for e in &self.ends {
+            let end = &self.states[e.0 as usize];
+            result.extend(end.assosiations.clone());
+        }
+
+        result
+    }
 }
+
+impl<A: Eq + hash::Hash + Default + Debug + Copy> From<Range<u8>> for NFA<A> {
+    fn from(range: Range<u8>) -> Self {
+        let mut nfa = NFA::<A>::empty();
+        let a = nfa.push_state();
+        nfa.push_connections(StateId::of(0), a, range);
+        nfa
+    }
+    
+}
+
+
 
 #[cfg(test)]
 mod tests {
+
+    use std::ops::Add;
+
+
     use super::*;
-    use regex_to_nfa::regex_to_nfa;
     #[test]
-    fn abc() {
-        let nfa = regex_to_nfa("abc").unwrap();
-        let dfa = DFA::from(nfa);
-        assert!(dfa.find("").is_err());
-        assert!(dfa.find("abc").is_ok());
+    fn literal() {
+        let nfa = NFA::<usize>::literal("hello");
+        assert!(nfa.find("hello").is_ok());
+        assert!(nfa.find("ello").is_err());
+        assert!(nfa.find("hhello").is_err());
+        assert!(nfa.find("helloo").is_err());
+        assert!(nfa.find("helo").is_err());
+        assert!(nfa.find("hxllo").is_err());
     }
 
     #[test]
-    fn abc_repeat() {
-        let nfa = regex_to_nfa("(abc)*").unwrap();
-        let dfa = DFA::from(nfa);
-
-        assert!(dfa.find("").is_ok());
-        assert!(dfa.find("abc").is_ok());
-        assert!(dfa.find("abcaabc").is_err());
-        assert!(dfa.find("a").is_err());
-        assert!(dfa.find("abd").is_err());
-        assert!(dfa.find("abcd").is_err());
-        assert!(dfa.find("abcabc").is_ok());
-        assert!(dfa.find("abcabcabc").is_ok());
+    fn empty() {
+        // The empty nfa does not match the empty string.
+        assert!(NFA::<usize>::empty().find("").is_err());
     }
 
     #[test]
-    fn one_of_abc() {
-        let nfa = regex_to_nfa("(aa|bb)").unwrap();
-        let dfa = DFA::from(nfa);
-
-        assert!(dfa.find("aa").is_ok());
-        assert!(dfa.find("bb").is_ok());
-        assert!(dfa.find("aabb").is_err());
-        assert!(dfa.find("aa|bb").is_err());
-        assert!(dfa.find("aabb").is_err());
+    fn empty_lit() {
+        let nfa = NFA::<usize>::literal("");
+        assert!(nfa.find("").is_ok());
     }
 
     #[test]
-    fn literal_star() {
-        let nfa = regex_to_nfa("\\*").unwrap();
-        let dfa = DFA::from(nfa);
+    fn empty_lit_ored_with_non_empty() {
+        let nfa = NFA::<usize>::literal("")
+            .or(NFA::<usize>::literal("a"))
+            .unwrap();
+        assert!(nfa.find("").is_ok());
+        assert!(nfa.find("a").is_ok());
+        assert!(nfa.find("b").is_err());
+        assert!(nfa.find("aa").is_err());
+    }
 
-        assert!(dfa.find("*").is_ok());
-        assert!(dfa.find("a").is_err());
+    #[quickcheck]
+    fn literal_param(input: String) -> bool {
+        let nfa = NFA::<usize>::literal(input.clone().as_str());
+        nfa.find(input.as_str()).is_ok()
     }
 
     #[test]
-    fn dot() {
-        let nfa = regex_to_nfa(".").unwrap();
-        let dfa = DFA::from(nfa);
-        assert!(dfa.find("").is_err());
-        assert!(dfa.find("a").is_ok());
-        assert!(dfa.find("b").is_ok());
-        assert!(dfa.find(" ").is_ok());
+    fn empty_literal() {
+        let nfa = NFA::<usize>::literal("");
+        assert!(nfa.find("").is_ok());
     }
 
-    //     #[test]
-    //     fn abc() {
-    //         let nfa_abc = NFA::from(&pattern!("abc"));
+    #[quickcheck]
+    fn literal_param_not_eq(input: String, other: String) -> bool {
+        let nfa = NFA::<usize>::literal(input.as_str());
+        nfa.find(other.as_str()).is_ok() == (input.eq(&other))
+    }
 
-    //         assert!(!nfa_abc.find(""));
-    //         assert!(nfa_abc.find("abc"));
-    //         assert!(!nfa_abc.find("abcabc"));
-    //         assert!(!nfa_abc.find("a"));
+    #[test]
+    fn followed_by_eq() {
+        let testcase = ["a", "abba", "abb", "ab", "aba", "b"];
+        let mut testcase2 = testcase.clone();
+        testcase2.reverse();
+
+        for head in testcase.iter() {
+            for tail in testcase2.iter() {
+                let mut head_nfa = NFA::<usize>::literal(head);
+                let tail_nfa = NFA::<usize>::literal(tail);
+                head_nfa.followed_by(tail_nfa).unwrap();
+                assert!(
+                    head_nfa.find(format!("{}{}", head, tail).as_str()).is_ok(),
+                    format!("{}{}", head, tail)
+                );
+            }
+        }
+    }
+
+    #[quickcheck]
+    fn followed_by_param_eq(head: String, tail: String) -> bool {
+        let mut head_nfa = NFA::<usize>::literal(head.as_str());
+        let tail_nfa = NFA::<usize>::literal(tail.as_str());
+
+        head_nfa.followed_by(tail_nfa).unwrap();
+        head_nfa.find(head.add(tail.as_str()).as_str()).is_ok()
+    }
+
+    #[quickcheck]
+    fn repeat_param0(lit: String) -> bool {
+        let head_nfa = NFA::<usize>::literal(lit.as_str());
+        let nfa = head_nfa.repeat().unwrap();
+        nfa.find(format!("").as_str()).is_ok()
+    }
+
+    #[quickcheck]
+    fn repeat_param1(lit: String) -> bool {
+        let head_nfa = NFA::<usize>::literal(lit.as_str());
+        let nfa = head_nfa.repeat().unwrap();
+        nfa.find(format!("{}", lit.as_str()).as_str()).is_ok()
+    }
+
+    #[quickcheck]
+    fn repeat_param2(lit: String) -> bool {
+        let head_nfa = NFA::<usize>::literal(lit.as_str());
+        let nfa = head_nfa.repeat().unwrap();
+        nfa.find(format!("{}{}", lit.as_str(), lit.as_str()).as_str())
+            .is_ok()
+    }
+
+    #[test]
+    fn repeat() {
+        let testcase = ["a", "b", "ab", "", " "];
+
+        for t in testcase.iter() {
+            let head_nfa = NFA::<usize>::literal(t);
+            let nfa = head_nfa.repeat().unwrap();
+
+            assert!(
+                nfa.find(format!("").as_str()).is_ok(),
+                format!("{} zero", t)
+            );
+            assert!(
+                nfa.find(format!("{}", t).as_str()).is_ok(),
+                format!("{} one", t)
+            );
+            assert!(
+                nfa.find(format!("{}{}", t, t).as_str()).is_ok(),
+                format!("{} two", t)
+            );
+        }
+    }
+
+    #[quickcheck]
+    fn or_param1(a: String, b: String) -> bool {
+        let nfa = NFA::<usize>::literal(a.as_str());
+        let nfb = NFA::<usize>::literal(b.as_str());
+        let or = nfa.or(nfb).unwrap();
+        return or.find(&a).is_ok() && or.find(&b).is_ok();
+    }
+
+    #[quickcheck]
+    fn or_param2(a: String, b: String, c: String) -> bool {
+        let nfa = NFA::<usize>::literal(a.as_str());
+        let nfb = NFA::<usize>::literal(b.as_str());
+        let or = nfa.or(nfb).unwrap();
+        if a != c && b != c {
+            return !or.find(&c).is_ok();
+        } else {
+            true
+        }
+    }
+
+    #[quickcheck]
+    fn literal_param_ass(a: String, ass: usize) -> bool {
+        let mut nfa = NFA::<usize>::literal(&a);
+        nfa.assosiate_ends(ass);
+        nfa.end_assosiations().contains(&ass)
+    }
+
+    #[quickcheck]
+    fn literal_or_ass1(a: String, b: String, ass: usize, bss: usize) -> bool {
+        if a.is_empty() || b.is_empty() {
+            return true;
+        }
+
+        let mut nfa = NFA::<usize>::literal(&a);
+        let mut nfb = NFA::<usize>::literal(&b);
+        nfa.assosiate_ends(ass);
+        nfb.assosiate_ends(bss);
+
+        let or = nfa.or(nfb).unwrap();
+        let asses = or.end_assosiations();
+        asses.contains(&ass) && asses.contains(&bss)
+    }
+
+    #[quickcheck]
+    fn literal_or_ass2(a: String, b: String, ass: usize, bss: usize) -> bool {
+        if a.is_empty() || b.is_empty() {
+            return true;
+        }
+
+        let mut nfa = NFA::<usize>::literal(&a);
+        let mut nfb = NFA::<usize>::literal(&b);
+        nfa.assosiate_ends(ass);
+        nfb.assosiate_ends(bss);
+
+        let or = nfa.or(nfb).unwrap();
+
+        let a_ends = or.find(a.as_str()).unwrap();
+        let b_ends = or.find(b.as_str()).unwrap();
+
+        let a_end = a_ends.iter().find(|x| or.ends.contains(x)).unwrap();
+        let b_end = b_ends.iter().find(|x| or.ends.contains(x)).unwrap();
+
+        let x = &or[a_end.clone()].assosiations.contains(&ass);
+        let y = &or[b_end.clone()].assosiations.contains(&bss);
+
+        *x && *y
+    }
+
+    // #[quickcheck]
+    // fn random_nfa_matches(case: NFAQtCase) -> bool{
+
+    //     // Check that the case nfa matches all the strings it contains.
+    //     for s in case.matches {
+    //         if !case.nfa.find(s.as_str()).is_some(){
+    //             return false;
+    //         }
     //     }
 
-    //     #[test]
-    //     fn abc_abc() {
-    //         let nfa_abc_abc = NFA::from(&pattern!("abc" "abc"));
+    //     true
 
-    //         assert!(!nfa_abc_abc.find(""));
-    //         assert!(!nfa_abc_abc.find("a"));
-    //         assert!(!nfa_abc_abc.find("abc"));
-    //         assert!(nfa_abc_abc.find("abcabc"));
-    //         assert!(!nfa_abc_abc.find("abcabcabc"));
-    //     }
-
-    //     #[test]
-    //     fn abc_repeat() {
-    //         let nfa_abc_repeat = NFA::from(&pattern!("abc"*));
-
-    //         assert!(nfa_abc_repeat.find(""));
-    //         assert!(nfa_abc_repeat.find("abc"));
-    //         assert!(nfa_abc_repeat.find("abcabc"));
-    //         assert!(!nfa_abc_repeat.find("a"));
-    //         assert!(!nfa_abc_repeat.find("b"));
-    //     }
-
-    //     #[test]
-    //     fn abc_abc_repeat() {
-    //         let nfa_abc = NFA::from(&pattern!("abc"));
-
-    //         let nfa_abc_abc = nfa_abc.clone().concat(&nfa_abc);
-    //         let nfa_abc_abc_repeat = nfa_abc_abc.repeat();
-
-    //         assert!(nfa_abc_abc_repeat.find(""));
-    //         assert!(!nfa_abc_abc_repeat.find("abc"));
-    //         assert!(nfa_abc_abc_repeat.find("abcabc"));
-    //         assert!(!nfa_abc_abc_repeat.find("abcabcabc"));
-    //     }
-
-    //     #[test]
-    //     fn abc_u_def() {
-    //         let nfa_abc = NFA::from(&pattern!("abc"));
-    //         let nfa_def = NFA::from(&pattern!("def"));
-    //         let nfa_abc_u_def = nfa_abc.union(&nfa_def);
-
-    //         assert!(nfa_abc_u_def.find("abc"));
-    //         assert!(nfa_abc_u_def.find("def"));
-    //         assert!(!nfa_abc_u_def.find(""));
-    //         assert!(!nfa_abc_u_def.find("abcd"));
-    //     }
-
-    //     #[test]
-    //     fn one_of_abc() {
-    //         let nfa_abc = NFA::from(&pattern!(["abc"]));
-
-    //         assert!(!nfa_abc.find(""));
-    //         assert!(nfa_abc.find("a"));
-    //         assert!(nfa_abc.find("b"));
-    //         assert!(nfa_abc.find("c"));
-    //         assert!(!nfa_abc.find("aa"));
-    //         assert!(!nfa_abc.find("ab"));
-    //         assert!(!nfa_abc.find("ac"));
-    //     }
-
-    //     #[test]
-    //     fn unicode() {
-    //         let nfa = NFA::from(&pattern!(["æøå🌏"]));
-
-    //         assert!(!nfa.find(" "));
-    //         assert!(!nfa.find(""));
-    //         assert!(nfa.find("æ"));
-    //         assert!(nfa.find("ø"));
-    //         assert!(nfa.find("å"));
-    //         assert!(nfa.find("🌏"));
-    //         assert!(!nfa.find("a"));
-    //         assert!(!nfa.find("b"));
-    //         assert!(!nfa.find("c"));
-    //     }
-
-    //     #[test]
-    //     fn unicode_repeat() {
-    //         let nfa = NFA::from(&pattern!(["æøå"]*));
-
-    //         assert!(nfa.find("æå"));
-    //         assert!(nfa.find("øæ"));
-    //         assert!(nfa.find("åø"));
-    //         assert!(!nfa.find("ab"));
-    //         assert!(!nfa.find("bc"));
-    //         assert!(!nfa.find("cd"));
-    //     }
-
-    //     #[test]
-    //     fn alt() {
-    //         let nfa = NFA::from(&Pattern::alt(&[pattern!("abc"), pattern!("def")]));
-
-    //         assert!(nfa.find("abc"));
-    //         assert!(nfa.find("def"));
-    //     }
-
-    //     #[test]
-    //     fn tp() {
-    //         let empty = NFA::empty();
-    //         let tp = pattern!("tp");
-    //         let tp_alt = NFA::from(&Pattern::alt(&[tp]));
-    //         let empty_tp_alt = empty.concat(&tp_alt);
-    //     }
-
-    //     #[test]
-    //     fn number() {
-    //         let digit = NFA::from(&Pattern::one_of("0123456789"));
-    //         let digit_many = digit.clone().repeat();
-    //         let digit_many_one = digit.concat(&digit_many);
-
-    //         let nfa = digit_many_one;
-
-    //         assert!(nfa.find("0"));
-    //         assert!(nfa.find("1"));
-    //         assert!(nfa.find("9"));
-    //         assert!(nfa.find("99"));
-    //         assert!(nfa.find("129385123901238189"));
-    //         assert!(!nfa.find("abasdasd"));
-    //         assert!(!nfa.find(""));
-    //         assert!(!nfa.find(" "));
-    //         assert!(!nfa.find("ab123abasd"));
-    //         assert!(!nfa.find("123123a"));
-    //         assert!(!nfa.find("a123123"));
-    //     }
-
-    //     #[test]
-    //     fn space() {
-    //         let nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
-
-    //         assert!(!nfa.find(""));
-    //         assert!(nfa.find(" "));
-    //         assert!(nfa.find("  "));
-    //         assert!(nfa.find("   "));
-    //         assert!(!nfa.find("abc "));
-    //         assert!(!nfa.find(" abc"));
-    //     }
-
-    //     #[test]
-    //     fn integer_space_integer() {
-    //         let integer_nfa = NFA::from(&pattern!(["0123456789"]["0123456789"]*));
-    //         let space_nfa = NFA::from(&Pattern::SPACE_MANY_ONE);
-
-    //         let integer_space_integer_nfa = integer_nfa.clone().concat(&space_nfa).concat(&integer_nfa);
-
-    //         let nfa = integer_space_integer_nfa;
-
-    //         assert!(nfa.find("10 10"));
-    //         assert!(!nfa.find(" 10 10"));
-    //         assert!(nfa.find("10    10"));
-    //         assert!(!nfa.find("a10 10"));
-    //         assert!(!nfa.find("10 10 "));
-    //     }
+    // }
 }

@@ -8,13 +8,13 @@ pub struct Literal {
 
 impl Parser for Literal {
     type Extract = ();
-    type State = ();
+    type ParserState = ();
 
     fn parse<'i>(
         &self,
-        _state: Self::State,
+        _state: Self::ParserState,
         input: &'i str,
-    ) -> (Result<(Self::Extract, &'i str)>, Option<Self::State>) {
+    ) -> (Result<(Self::Extract, &'i str)>, Option<Self::ParserState>) {
         let input_lower = &mut input
             .trim_start()
             .chars()

@@ -21,18 +21,18 @@ impl<State: Default> Default for OptState<State> {
 impl<P: Parser> Parser for Opt<P>
 where
     P::Extract: Tuple,
-    P::State: Default,
+    P::ParserState: Default,
 {
     type Extract = (Option<P::Extract>,);
-    type State = OptState<P::State>;
+    type ParserState = OptState<P::ParserState>;
 
     fn parse<'p>(
         &self,
-        state: Self::State,
+        state: Self::ParserState,
         input: &'p str,
     ) -> (
         anyhow::Result<(Self::Extract, &'p str)>,
-        Option<Self::State>,
+        Option<Self::ParserState>,
     ) {
         match state {
             OptState::Skip() => {

@@ -1,18 +1,23 @@
-use core::fmt;
 
 use crate::generic::Tuple;
 
 pub trait Parser {
+    /// This assosiated type says what the return value is for the parser. If you have a parser that returns a i32, then set it to Extract = (i32,), or
+    /// if you dont want it returning anythin use Extract = ()
     type Extract: Tuple;
-    type State: Default + std::fmt::Debug;
+
+    /// You probably just want to set it to (), and always return None in its place for 'fn parse(&self ...' 
+    // Internaly we use this for the And, Or and the Optional parsers. This makes implementors of the Parser trait
+    // generators of potential parsing results. 
+    type ParserState: Default;
 
     fn parse<'p>(
         &self,
-        state: Self::State,
+        state: Self::ParserState,
         input: &'p str,
     ) -> (
         anyhow::Result<(Self::Extract, &'p str)>,
-        Option<Self::State>,
+        Option<Self::ParserState>,
     );
 
     /// This method should return a regex that recognises a language that is a superset of what the parser recognises.
@@ -20,7 +25,14 @@ pub trait Parser {
     /// that it consumed, but it does not have to be the other way arround. Theoretically we could therefor always use '.*?'
     /// as the regex, but then its not as usefull.
     /// We use the regex as a heuristic to determine if a parser can parse some input. So if for example you expect a parser
-    /// to be able to parse json then a suitable regex would be "\{.*?\}". Using this regex we can reduce the need to go from
-    /// feather core to the wasm instance the plugin is running in.
+    /// to be able to parse json then a suitable regex would be "\{.*?\}". Using this regex we can quickly determine what command
+    /// a input belongs to.
     fn regex(&self) -> String;
+
 }
+
+
+
+
+
+

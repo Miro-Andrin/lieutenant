@@ -1,3 +1,6 @@
+use core::fmt;
+use std::fmt::Debug;
+
 use crate::generic::{Combine, CombinedTuples, Tuple};
 
 use super::parser::Parser;
@@ -8,9 +11,9 @@ pub struct And<A, B> {
 }
 
 pub struct AndState<A: Parser, B: Parser> {
-    pub(crate) a_state: Option<A::State>,
+    pub(crate) a_state: Option<A::ParserState>,
     pub(crate) a_ext: Option<(A::Extract, usize)>,
-    pub(crate) b_state: Option<B::State>,
+    pub(crate) b_state: Option<B::ParserState>,
 }
 
 impl<A, B> Default for AndState<A, B>
@@ -20,7 +23,7 @@ where
 {
     fn default() -> Self {
         Self {
-            a_state: Some(A::State::default()),
+            a_state: Some(A::ParserState::default()),
             b_state: None,
             a_ext: None,
         }
@@ -30,7 +33,12 @@ where
 impl<A, B> std::fmt::Debug for AndState<A, B>
 where
     A: Parser,
+    A::Extract : std::fmt::Debug,
+    A::ParserState : std::fmt::Debug,
     B: Parser,
+    B::Extract : std::fmt::Debug,
+    B::ParserState : std::fmt::Debug,
+    
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // match (self.a_state, self.b_state, self.a_ext) {
@@ -68,7 +76,7 @@ where
     // in the AndState.
 {
     type Extract = CombinedTuples<A::Extract, B::Extract>;
-    type State = AndState<A, B>;
+    type ParserState = AndState<A, B>;
 
     fn parse<'p>(
         &self,
@@ -183,7 +191,7 @@ where
                                     AndState {
                                         a_state: Some(a_state),
                                         a_ext: Some((a_ext, a_out_index)),
-                                        b_state: Some(B::State::default()),
+                                        b_state: Some(B::ParserState::default()),
                                     },
                                     input,
                                 );
@@ -196,7 +204,7 @@ where
                                     AndState {
                                         a_state: None,
                                         a_ext: Some((a_ext, a_out_index)),
-                                        b_state: Some(B::State::default()),
+                                        b_state: Some(B::ParserState::default()),
                                     },
                                     input,
                                 );
@@ -324,7 +332,7 @@ where
                             Some(AndState {
                                 a_state: Some(a_state),
                                 a_ext: None,
-                                b_state: Some(B::State::default()),
+                                b_state: Some(B::ParserState::default()),
                             }),
                         );
                     }

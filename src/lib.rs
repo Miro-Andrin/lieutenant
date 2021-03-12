@@ -1,13 +1,20 @@
 pub mod command;
-pub mod command_tree;
 mod generic;
 pub mod parser;
 mod regex;
+
 
 use std::fmt;
 
 type NodeId = usize;
 type CommandId = usize;
+
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
+
 
 pub trait Validator {
     fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
@@ -59,70 +66,70 @@ pub struct Dispatcher {
     nodes: Vec<Node>,
 }
 
-impl Dispatcher {
-    pub fn add(&mut self, parent: Option<NodeId>, node: Node) -> NodeId {
-        let node_id = self.nodes.len();
-        self.nodes.push(node);
+// impl Dispatcher {
+//     pub fn add(&mut self, parent: Option<NodeId>, node: Node) -> NodeId {
+//         let node_id = self.nodes.len();
+//         self.nodes.push(node);
 
-        if let Some(parent_id) = parent {
-            self.nodes[parent_id].children.push(node_id);
-        } else {
-            self.root.push(node_id);
-        }
-        node_id
-    }
+//         if let Some(parent_id) = parent {
+//             self.nodes[parent_id].children.push(node_id);
+//         } else {
+//             self.root.push(node_id);
+//         }
+//         node_id
+//     }
 
-    pub fn find(&self, input: &str) -> Option<CommandId> {
-        //let mut input = input;
+//     pub fn find(&self, input: &str) -> Option<CommandId> {
+//         //let mut input = input;
 
-        let mut stack = self
-            .root
-            .clone()
-            .into_iter()
-            .map(|child| (input, child))
-            .collect::<Vec<_>>();
+//         let mut stack = self
+//             .root
+//             .clone()
+//             .into_iter()
+//             .map(|child| (input, child))
+//             .collect::<Vec<_>>();
 
-        println!("First Stack: {:?}", self.root);
-        //println!("Non-Root-Nodes: {:?}",self.nodes.iter().enumerate().filter(|(i,_)| self.root.contains(i)).map(|(_,n)| n.command).collect::<Vec<_>>());
-        //println!("{:?}",self);
+//         println!("First Stack: {:?}", self.root);
+//         //println!("Non-Root-Nodes: {:?}",self.nodes.iter().enumerate().filter(|(i,_)| self.root.contains(i)).map(|(_,n)| n.command).collect::<Vec<_>>());
+//         //println!("{:?}",self);
 
-        while let Some((input, node_id)) = stack.pop() {
-            println!("Stack: {:?} (input:{}, node_id:{})", stack, input, node_id);
+//         while let Some((input, node_id)) = stack.pop() {
+//             println!("Stack: {:?} (input:{}, node_id:{})", stack, input, node_id);
 
-            let node = &self.nodes[node_id];
-            match node.validate(input) {
-                (true, out) => {
-                    println!("input_after_validate_ {}", input);
-                    if out.trim_start().is_empty() {
-                        if let Some(command_id) = node.command {
-                            return Some(command_id);
-                        }
-                    } else {
-                        stack.extend(
-                            node.children
-                                .iter()
-                                .map(|child_id| (out.trim_start(), *child_id)),
-                        );
-                    }
-                }
-                (false, _) => {}
-            }
-            // if node.validate(&input) {
-            //     println!("input_after_validate_ {}", input);
-            //     let input = input.trim_start();
-            //     if input.is_empty() {
-            //         if let Some(command_id) = node.command {
-            //             return Some(command_id);
-            //         }
-            //     } else {
-            //         stack.extend(node.children.iter().map(|child_id| (input, *child_id)));
-            //     }
-            // }
-        }
+//             let node = &self.nodes[node_id];
+//             match node.validate(input) {
+//                 (true, out) => {
+//                     println!("input_after_validate_ {}", input);
+//                     if out.trim_start().is_empty() {
+//                         if let Some(command_id) = node.command {
+//                             return Some(command_id);
+//                         }
+//                     } else {
+//                         stack.extend(
+//                             node.children
+//                                 .iter()
+//                                 .map(|child_id| (out.trim_start(), *child_id)),
+//                         );
+//                     }
+//                 }
+//                 (false, _) => {}
+//             }
+//             // if node.validate(&input) {
+//             //     println!("input_after_validate_ {}", input);
+//             //     let input = input.trim_start();
+//             //     if input.is_empty() {
+//             //         if let Some(command_id) = node.command {
+//             //             return Some(command_id);
+//             //         }
+//             //     } else {
+//             //         stack.extend(node.children.iter().map(|child_id| (input, *child_id)));
+//             //     }
+//             // }
+//         }
 
-        None
-    }
-}
+//         None
+//     }
+// }
 
 pub trait AddToDispatcher {
     fn add_to_dispatcher(&self, parent: Option<NodeId>, dispatcher: &mut Dispatcher) -> NodeId;

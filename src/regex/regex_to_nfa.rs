@@ -1,18 +1,23 @@
 use std::ops::Range;
 
-use regex_syntax::{hir::ClassUnicodeRange, Parser};
+use regex_syntax::Parser;
 
-use super::{ByteClass, NFA};
 use anyhow::{bail, Result};
 
-pub(crate) fn regex_to_nfa(regex: &str) -> Result<NFA> {
+use crate::regex::NFA;
+
+fn regex_to_nfa<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug>(
+    regex: &str,
+) -> Result<NFA<A>> {
     let hir = Parser::new().parse(regex)?;
     hir_to_nfa(&hir)
 }
 
-fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
+fn hir_to_nfa<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug>(
+    hir: &regex_syntax::hir::Hir,
+) -> Result<NFA<A>> {
     match hir.kind() {
-        regex_syntax::hir::HirKind::Empty => Ok(NFA::single_u8()),
+        regex_syntax::hir::HirKind::Empty => Ok(NFA::literal("")),
         regex_syntax::hir::HirKind::Literal(lit) => match lit {
             regex_syntax::hir::Literal::Unicode(uni) => Ok(NFA::literal(&uni.to_string())),
             regex_syntax::hir::Literal::Byte(byte) => Ok(NFA::literal(&byte.to_string())),
@@ -20,51 +25,20 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
         regex_syntax::hir::HirKind::Class(class) => {
             match class {
                 regex_syntax::hir::Class::Unicode(uni) => {
-                    let mut classes = [[0u8; 256]; 4];
+                    let mut nfa = NFA::<A>::empty();
                     for range in uni.ranges() {
-                        let mut start = [0u8; 4];
-                        range.start().encode_utf8(&mut start);
-                        let mut end = [0u8; 4];
-                        range.end().encode_utf8(&mut end);
-
-                        let mut bytes = start.iter().copied().zip(end.iter().copied()).enumerate();
-
-                        let (c, (lower, upper)) = bytes.next().unwrap();
-                        for b in lower..=upper {
-                            if b < 128 {
-                                classes[c][b as usize] = 1;
-                            } else if b >= 192 && b < 224 {
-                                classes[c][b as usize] = 2;
-                            } else if b >= 224 && b < 240 {
-                                classes[c][b as usize] = 3;
-                            } else if b >= 240 && b < 248 {
-                                classes[c][b as usize] = 4;
-                            }
-                        }
-
-                        for (c, (lower, upper)) in bytes {
-                            for b in lower..=upper {
-                                if b < 192 {
-                                    classes[c][b as usize] = 1;
-                                }
-                            }
-                        }
+                        nfa = nfa.or(NFA::<A>::from(range))?;
                     }
-
-                    let mut nfa = NFA::empty();
-
-                    println!("{:?}", classes.iter().map(|class| class.to_vec()).collect::<Vec<_>>());
-
                     Ok(nfa)
                 }
                 regex_syntax::hir::Class::Bytes(byte) => {
                     let mut nfa = NFA::empty();
                     for range in byte.iter() {
                         //Todo check that range is inclusive
-                        nfa = nfa.union(&NFA::from(Range {
+                        nfa = nfa.or(NFA::from(Range {
                             start: range.start(),
                             end: range.end(),
-                        }));
+                        }))?;
                     }
                     Ok(nfa)
                 }
@@ -95,7 +69,7 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
         regex_syntax::hir::HirKind::Repetition(x) => {
             if x.greedy {
                 let nfa = hir_to_nfa(&x.hir)?;
-                Ok(nfa.repeat())
+                Ok(nfa.repeat()?)
             } else {
                 bail!("We dont suport non greedy patterns")
             }
@@ -109,7 +83,7 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
             let mut nfas = cats.iter().map(|hir| hir_to_nfa(hir));
             let mut fst = nfas.next().unwrap()?;
             for nfa in nfas {
-                fst = fst.concat(&nfa?);
+                fst.followed_by(nfa?)?;
             }
             Ok(fst)
         }
@@ -118,9 +92,87 @@ fn hir_to_nfa(hir: &regex_syntax::hir::Hir) -> Result<NFA> {
             let mut nfas = alts.iter().map(|hir| hir_to_nfa(hir));
             let mut fst = nfas.next().unwrap()?;
             for nfa in nfas {
-                fst = fst.union(&nfa?);
+                fst = fst.or(nfa?)?;
             }
             Ok(fst)
+        }
+    }
+}
+
+impl<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug> NFA<A> {
+    pub fn regex(string: &str) -> anyhow::Result<NFA<A>> {
+        regex_to_nfa(string)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::regex::dfa::DFA;
+
+    use super::*;
+    #[test]
+    fn simple1() {
+        let nfa = NFA::<usize>::regex("fu.*").unwrap();
+        let dfa = DFA::<usize>::from(nfa);
+
+        for case in &["funN", "fu.\"", "fu,-", "fu{:", "fut!"] {
+            assert!(dfa.find(case).is_ok());
+        }
+
+    }
+
+    #[test]
+    fn simple2() {
+        let nfa = NFA::<usize>::regex("fu..*").unwrap();
+        let dfa = DFA::<usize>::from(nfa);
+
+        for case in &["funN", "fu.\"", "fu,-", "fu{:", "fut!"] {
+            assert!(dfa.find(case).is_ok());
+        }
+
+        for case in &["fu"] {
+            assert!(dfa.find(case).is_err());
+        }
+    }
+    
+    #[test]
+    fn digit() {
+        let nfa = NFA::<usize>::regex("\\d").unwrap();
+        let dfa = DFA::<usize>::from(nfa);
+
+        for case in &["1","2","3","4","5","6","7","8","9","0"] {
+            assert!(dfa.find(case).is_ok());
+        }
+        for case in &["a"] {
+            assert!(dfa.find(case).is_err());
+        }    
+        
+    }
+
+    #[test]
+    fn not_digit() {
+        let nfa = NFA::<usize>::regex("\\D").unwrap();
+        let dfa = DFA::<usize>::from(nfa);
+
+        for case in &["1","2","3","4","5","6","7","8","9","0"] {
+            assert!(dfa.find(case).is_err());
+        }
+        for case in &["a","q"] {
+            assert!(dfa.find(case).is_ok());
+        }
+    }
+
+    #[test]
+    fn direct_sibtraction() {
+        let nfa = NFA::<usize>::regex("[0-9--4]").unwrap();
+        let dfa = DFA::<usize>::from(nfa);
+
+        for case in &["1","2","3","5","6","7","8","9","0"] {
+            assert!(dfa.find(case).is_ok());
+        }
+        for case in &["4","a"] {
+            assert!(dfa.find(case).is_err());
         }
     }
 }

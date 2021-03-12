@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use crate::generic::Func;
 use crate::parser::parser::Parser;
 
@@ -26,15 +24,15 @@ where
     F: Func<P::Extract>,
 {
     type Extract = (F::Output,);
-    type State = P::State;
+    type ParserState = P::ParserState;
 
     fn parse<'p>(
         &self,
-        state: Self::State,
+        state: Self::ParserState,
         input: &'p str,
     ) -> (
         anyhow::Result<(Self::Extract, &'p str), anyhow::Error>,
-        Option<Self::State>,
+        Option<Self::ParserState>,
     ) {
         let (result, state) = self.parser.parse(state, input);
 

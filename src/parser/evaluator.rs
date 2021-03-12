@@ -12,7 +12,7 @@ impl<'p, P: Parser> Evaluator<'p, P> {
 
 impl<'p, P: Parser> Evaluator<'p, P> {
     pub fn evaluate<'i>(&self, input: &'i str) -> (Option<P::Extract>, &'i str) {
-        let mut state = Some(P::State::default());
+        let mut state = Some(P::ParserState::default());
 
         while let Some(st) = state {
             let (res, new_st) = self.parser.parse(st, input);
@@ -31,7 +31,7 @@ impl<'p, P: Parser> Evaluator<'p, P> {
     pub fn evaluate_all<'i>(&self, input: &'i str) -> Vec<anyhow::Result<(P::Extract, &'i str)>> {
         let mut result = Vec::new();
 
-        let mut state = Some(P::State::default());
+        let mut state = Some(P::ParserState::default());
 
         while let Some(st) = state {
             let (res, new_st) = self.parser.parse(st, input);

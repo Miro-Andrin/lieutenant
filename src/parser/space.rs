@@ -1,10 +1,10 @@
+use super::IterParser;
 use anyhow::{anyhow, bail};
-use super::Parser;
 
 #[derive(Debug)]
 pub enum OnceState {
     More,
-    Done
+    Done,
 }
 impl Default for OnceState {
     fn default() -> Self {
@@ -13,21 +13,21 @@ impl Default for OnceState {
 }
 
 pub struct OneOrMoreSpace {}
-pub struct MaybeSpaces{}
+pub struct MaybeSpaces {}
 
 impl MaybeSpaces {
     pub fn new() -> Self {
-        Self{}
+        Self {}
     }
 }
 
 impl OneOrMoreSpace {
     pub fn new() -> Self {
-        Self{}
+        Self {}
     }
 }
 
-impl Parser for OneOrMoreSpace {
+impl IterParser for OneOrMoreSpace {
     type Extract = ();
 
     type ParserState = ();
@@ -45,7 +45,7 @@ impl Parser for OneOrMoreSpace {
         if out.len() == before_len {
             (Err(anyhow!("Expected a space")), None)
         } else {
-            (Ok(((),out)), None)
+            (Ok(((), out)), None)
         }
     }
 
@@ -54,7 +54,7 @@ impl Parser for OneOrMoreSpace {
     }
 }
 
-impl Parser for MaybeSpaces {
+impl IterParser for MaybeSpaces {
     type Extract = ();
     type ParserState = ();
 
@@ -67,8 +67,7 @@ impl Parser for MaybeSpaces {
         Option<Self::ParserState>,
     ) {
         let out = input.trim_start();
-        (Ok(((),out)), None)
-        
+        (Ok(((), out)), None)
     }
 
     fn regex(&self) -> String {

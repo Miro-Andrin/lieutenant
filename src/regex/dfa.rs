@@ -1,9 +1,12 @@
-use std::{collections::HashSet, ops::{Index, IndexMut}};
 use crate::regex::{
     byteclass::{ByteClass, ByteClassId},
     stateid::StateId,
 };
-use indexmap::{IndexSet};
+use indexmap::IndexSet;
+use std::{
+    collections::HashSet,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct DfaState<A> {
@@ -28,10 +31,10 @@ impl<A> DfaState<A> {
     }
 }
 
-impl <A: Eq + std::hash::Hash> DfaState<A> {
+impl<A: Eq + std::hash::Hash> DfaState<A> {
     pub fn is_assosiated_with(&self, value: &A) -> bool {
-        return self.assosiations.contains(value)
-    } 
+        return self.assosiations.contains(value);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -109,10 +112,10 @@ impl<A: std::hash::Hash + Eq + Clone> DFA<A> {
         state.assosiations.iter().cloned().collect::<Vec<A>>()
     }
 
-    pub fn find<I : AsRef<[u8]>>(&self, input: I) -> Result<StateId, StateId> {
+    pub fn find<I: AsRef<[u8]>>(&self, input: I) -> Result<StateId, StateId> {
         let mut current = StateId::of(0);
         let mut previus = StateId::of(0);
-        for b in input.as_ref(){
+        for b in input.as_ref() {
             if let Some(next) = self[(current, *b)] {
                 previus = current;
                 current = next;
@@ -164,12 +167,11 @@ impl<A> Index<(StateId, u8)> for DFA<A> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
-    use crate::regex::nfa::NFA;
     use super::*;
+    use crate::regex::nfa::NFA;
     #[test]
     fn literal() {
         let nfa = NFA::<usize>::literal("hello");
@@ -184,7 +186,6 @@ mod tests {
         assert!(dfa.find("helln").is_err());
     }
 
-
     #[test]
     fn empty_literal() {
         let nfa = NFA::<usize>::literal("");
@@ -195,60 +196,51 @@ mod tests {
 
     #[test]
     fn simple_or() {
-
         let nfa = NFA::<usize>::literal("a");
         let nfb = NFA::<usize>::literal("b");
 
         let dfa: DFA<usize> = nfa.or(nfb).unwrap().into();
-        
+
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_ok());
         assert!(dfa.find("c").is_err());
         assert!(dfa.find("").is_err());
-
     }
 
     #[test]
     fn simple_or_eq() {
-
         let nfa = NFA::<usize>::literal("a");
         let nfb = NFA::<usize>::literal("a");
 
         let dfa: DFA<usize> = nfa.or(nfb).unwrap().into();
-        
+
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_err());
         assert!(dfa.find("").is_err());
-
     }
-
 
     #[test]
     fn simple_or_empty() {
-
         let nfa = NFA::<usize>::literal("a");
         let nfb = NFA::<usize>::literal("");
 
         let dfa: DFA<usize> = nfa.or(nfb).unwrap().into();
-        
+
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_err());
         assert!(dfa.find("").is_ok());
-
     }
 
     #[test]
     fn empty_or_empty() {
-
         let nfa = NFA::<usize>::literal("");
         let nfb = NFA::<usize>::literal("");
 
         let dfa: DFA<usize> = nfa.or(nfb).unwrap().into();
-        
+
         assert!(dfa.find("a").is_err());
         assert!(dfa.find("b").is_err());
         assert!(dfa.find("").is_ok());
-        
     }
 
     #[test]
@@ -257,15 +249,9 @@ mod tests {
         let nfb = NFA::<usize>::literal("a");
 
         let dfa: DFA<usize> = nfa.or(nfb).unwrap().into();
-        
+
         assert!(dfa.find("a").is_ok());
         assert!(dfa.find("b").is_err());
         assert!(dfa.find("").is_ok());
     }
-
-
-
-
-
-    
 }

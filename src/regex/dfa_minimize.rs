@@ -6,9 +6,9 @@
 
 // impl <A: Eq + std::hash::Hash> DfaState<A> {
 
-//     // When canonicalizing a dfa, we want to reduce the number of byteclasses. 
-//     // The order of self.table is arbitrary, so we can change it to suite ourselves. 
-//     // For every byteclass we can define a reordering such that [0,0,3,2,2,1,4 ...] 
+//     // When canonicalizing a dfa, we want to reduce the number of byteclasses.
+//     // The order of self.table is arbitrary, so we can change it to suite ourselves.
+//     // For every byteclass we can define a reordering such that [0,0,3,2,2,1,4 ...]
 //     // is turned into [0,0,1,2,2,3,4 ...]. By mapping 3 to 1, 2 to 2, 1 to 3, and 4 to 4.
 //     // This function applies this mapping to self.table
 //     pub(crate) fn canonicalize_table(&mut self, mappings: &HashMap<ByteClassId, Vec<u8>>) {
@@ -19,8 +19,6 @@
 //     }
 
 // }
-
-
 
 // impl<A: std::hash::Hash + Eq> DFA<A> {
 
@@ -38,25 +36,14 @@
 //         let new_transitions = IndexSet::<ByteClass>::new();
 
 //         for (id, byteclass) in self.transitions.iter().enumerate() {
-            
-            
 
 //         }
-
-
-
-        
 
 //         for state in self.states.iter_mut() {
 //             let old_byteclass_id = state.class;
-//             let mapping = 
+//             let mapping =
 //         }
-
 
 //     }
 
 // }
-
-
-
-

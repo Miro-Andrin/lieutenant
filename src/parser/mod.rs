@@ -3,7 +3,7 @@ mod evaluator;
 mod literal;
 mod map;
 mod optional;
-mod parser;
+pub(crate) mod parser;
 mod space;
 
 pub use and::*;

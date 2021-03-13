@@ -1,3 +1,3 @@
-mod command;
-mod dispatcher;
-mod builder;
+pub mod builder;
+pub mod command;
+pub mod dispatcher;

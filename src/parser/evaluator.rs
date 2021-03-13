@@ -1,16 +1,16 @@
-use super::parser::Parser;
+use super::parser::IterParser;
 
 pub struct Evaluator<'p, P> {
     parser: &'p P,
 }
 
-impl<'p, P: Parser> Evaluator<'p, P> {
+impl<'p, P: IterParser> Evaluator<'p, P> {
     pub fn new(parser: &'p P) -> Self {
         Self { parser }
     }
 }
 
-impl<'p, P: Parser> Evaluator<'p, P> {
+impl<'p, P: IterParser> Evaluator<'p, P> {
     pub fn evaluate<'i>(&self, input: &'i str) -> (Option<P::Extract>, &'i str) {
         let mut state = Some(P::ParserState::default());
 

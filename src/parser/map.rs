@@ -1,5 +1,5 @@
 use crate::generic::Func;
-use crate::parser::parser::Parser;
+use crate::parser::parser::IterParser;
 
 pub struct Map<P, F> {
     pub(crate) parser: P,
@@ -18,9 +18,9 @@ impl<S: Default> Default for MapState<S> {
     }
 }
 
-impl<P, F> Parser for Map<P, F>
+impl<P, F> IterParser for Map<P, F>
 where
-    P: Parser,
+    P: IterParser,
     F: Func<P::Extract>,
 {
     type Extract = (F::Output,);

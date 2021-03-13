@@ -119,8 +119,6 @@ impl<A: Eq + std::hash::Hash + Default + Copy + Debug> From<NFA<A>> for DFA<A> {
 #[cfg(test)]
 mod tests {
 
-    
-
     use crate::regex::qc::NFAQtCase;
     use crate::regex::{dfa::DFA, NFA};
 

@@ -3,14 +3,14 @@ use std::fmt::Debug;
 
 use crate::generic::{Combine, CombinedTuples, Tuple};
 
-use super::parser::Parser;
+use super::parser::IterParser;
 
 pub struct And<A, B> {
     pub(crate) a: A,
     pub(crate) b: B,
 }
 
-pub struct AndState<A: Parser, B: Parser> {
+pub struct AndState<A: IterParser, B: IterParser> {
     pub(crate) a_state: Option<A::ParserState>,
     pub(crate) a_ext: Option<(A::Extract, usize)>,
     pub(crate) b_state: Option<B::ParserState>,
@@ -18,8 +18,8 @@ pub struct AndState<A: Parser, B: Parser> {
 
 impl<A, B> Default for AndState<A, B>
 where
-    A: Parser,
-    B: Parser,
+    A: IterParser,
+    B: IterParser,
 {
     fn default() -> Self {
         Self {
@@ -32,13 +32,12 @@ where
 
 impl<A, B> std::fmt::Debug for AndState<A, B>
 where
-    A: Parser,
-    A::Extract : std::fmt::Debug,
-    A::ParserState : std::fmt::Debug,
-    B: Parser,
-    B::Extract : std::fmt::Debug,
-    B::ParserState : std::fmt::Debug,
-    
+    A: IterParser,
+    A::Extract: std::fmt::Debug,
+    A::ParserState: std::fmt::Debug,
+    B: IterParser,
+    B::Extract: std::fmt::Debug,
+    B::ParserState: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // match (self.a_state, self.b_state, self.a_ext) {
@@ -66,14 +65,13 @@ where
     }
 }
 
-impl<A, B> Parser for And<A, B>
+impl<A, B> IterParser for And<A, B>
 where
-    A: Parser,
-    A::Extract: Clone,
-    B: Parser,
-    <<A as Parser>::Extract as Tuple>::HList: Combine<<<B as Parser>::Extract as Tuple>::HList>,
-    // I would love to remove the Clones. The issue is with a_ext.combine(b_ext) consuming a_ext, but for it to also be nessesary
-    // in the AndState.
+    A: IterParser,
+    // A::Extract: Clone,
+    B: IterParser,
+    <<A as IterParser>::Extract as Tuple>::HList:
+        Combine<<<B as IterParser>::Extract as Tuple>::HList>,
 {
     type Extract = CombinedTuples<A::Extract, B::Extract>;
     type ParserState = AndState<A, B>;

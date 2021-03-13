@@ -119,7 +119,6 @@ mod tests {
         for case in &["funN", "fu.\"", "fu,-", "fu{:", "fut!"] {
             assert!(dfa.find(case).is_ok());
         }
-
     }
 
     #[test]
@@ -135,19 +134,18 @@ mod tests {
             assert!(dfa.find(case).is_err());
         }
     }
-    
+
     #[test]
     fn digit() {
         let nfa = NFA::<usize>::regex("\\d").unwrap();
         let dfa = DFA::<usize>::from(nfa);
 
-        for case in &["1","2","3","4","5","6","7","8","9","0"] {
+        for case in &["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] {
             assert!(dfa.find(case).is_ok());
         }
         for case in &["a"] {
             assert!(dfa.find(case).is_err());
-        }    
-        
+        }
     }
 
     #[test]
@@ -155,10 +153,10 @@ mod tests {
         let nfa = NFA::<usize>::regex("\\D").unwrap();
         let dfa = DFA::<usize>::from(nfa);
 
-        for case in &["1","2","3","4","5","6","7","8","9","0"] {
+        for case in &["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] {
             assert!(dfa.find(case).is_err());
         }
-        for case in &["a","q"] {
+        for case in &["a", "q"] {
             assert!(dfa.find(case).is_ok());
         }
     }
@@ -168,10 +166,10 @@ mod tests {
         let nfa = NFA::<usize>::regex("[0-9--4]").unwrap();
         let dfa = DFA::<usize>::from(nfa);
 
-        for case in &["1","2","3","5","6","7","8","9","0"] {
+        for case in &["1", "2", "3", "5", "6", "7", "8", "9", "0"] {
             assert!(dfa.find(case).is_ok());
         }
-        for case in &["4","a"] {
+        for case in &["4", "a"] {
             assert!(dfa.find(case).is_err());
         }
     }

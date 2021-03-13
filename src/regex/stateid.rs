@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StateId(pub u32); 
+pub struct StateId(pub u32);
 
 impl StateId {
     pub fn of(id: usize) -> Self {

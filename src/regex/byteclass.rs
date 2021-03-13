@@ -1,7 +1,9 @@
+use std::{
+    fmt,
+    ops::{Index, IndexMut},
+};
 
-use std::{fmt, ops::{Index, IndexMut}};
-
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash,Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub(crate) struct ByteClassId(pub u16);
 
 impl From<u16> for ByteClassId {
@@ -10,8 +12,7 @@ impl From<u16> for ByteClassId {
     }
 }
 
-
-#[derive(Clone,Hash,Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub(crate) struct ByteClass(Vec<u8>);
 
 impl ByteClass {
@@ -41,10 +42,9 @@ impl ByteClass {
     //     for i in 0..map.len() {
     //         result.push(map[&(i as u8)])
     //     }
-    
+
     //     result
     // }
-
 
     // pub(crate) fn chronologize_by(&self, mapping: Vec<u8>) -> Self {
     //     let mut result = self.clone();
@@ -55,8 +55,6 @@ impl ByteClass {
 
     //     result
     // }
-
-
 }
 
 impl From<u8> for ByteClass {
@@ -73,7 +71,6 @@ impl fmt::Debug for ByteClass {
         Ok(())
     }
 }
-
 
 impl Index<u8> for ByteClass {
     type Output = u8;

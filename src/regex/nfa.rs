@@ -2,7 +2,15 @@ use indexmap::IndexSet;
 //use regex_to_nfa::regex_to_nfa;
 use super::byteclass::{ByteClass, ByteClassId};
 use super::stateid::StateId;
-use std::{collections::{BTreeSet, HashSet}, convert::TryInto, fmt::Debug, hash, iter, mem::{self}, ops::{Index, IndexMut, Range}, usize};
+use std::{
+    collections::{BTreeSet, HashSet},
+    convert::TryInto,
+    fmt::Debug,
+    hash, iter,
+    mem::{self},
+    ops::{Index, IndexMut, Range},
+    usize,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct NfaState<A> {
@@ -169,7 +177,12 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         self[from] = state;
     }
 
-    pub(crate) fn push_connections<Itr : IntoIterator<Item = u8>>(&mut self, from: StateId, to: StateId, values : Itr) {
+    pub(crate) fn push_connections<Itr: IntoIterator<Item = u8>>(
+        &mut self,
+        from: StateId,
+        to: StateId,
+        values: Itr,
+    ) {
         let existing_byteclass = &self[self[from].class.clone()];
         let mut new_byteclass = existing_byteclass.clone();
 
@@ -299,7 +312,7 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         (Ok(new_states), true)
     }
 
-    pub fn find<T : AsRef<[u8]>>(&self, text: T) -> Result<BTreeSet<StateId>, BTreeSet<StateId>> {
+    pub fn find<T: AsRef<[u8]>>(&self, text: T) -> Result<BTreeSet<StateId>, BTreeSet<StateId>> {
         let mut bytes = text.as_ref();
         let mut current_states = iter::once(StateId::of(0)).collect::<BTreeSet<_>>();
         loop {
@@ -370,7 +383,6 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         Ok(nfa)
     }
 
-
     pub fn assosiate(&mut self, id: StateId, value: A) -> anyhow::Result<()> {
         self[id].associate_with(value);
         Ok(())
@@ -412,16 +424,12 @@ impl<A: Eq + hash::Hash + Default + Debug + Copy> From<Range<u8>> for NFA<A> {
         nfa.push_connections(StateId::of(0), a, range);
         nfa
     }
-    
 }
-
-
 
 #[cfg(test)]
 mod tests {
 
     use std::ops::Add;
-
 
     use super::*;
     #[test]

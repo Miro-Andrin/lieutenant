@@ -8,36 +8,44 @@ const MAX_LIT_LEN: usize = 2;
 const DEBTH: usize = 5; // How deep the nfa should be.
 
 /*
-This file contains code for generating testcases for quickcheck. 
+This file contains code for generating testcases for quickcheck.
 */
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum NfaQt {
     Lit(String),
-    Or{a: Box<NfaQt>,b: Box<NfaQt>},
-    FollowedBy{a: Box<NfaQt>,b: Box<NfaQt>},
-}   
+    Or { a: Box<NfaQt>, b: Box<NfaQt> },
+    FollowedBy { a: Box<NfaQt>, b: Box<NfaQt> },
+}
 
 impl NfaQt {
     fn new(g: &mut quickcheck::Gen, level: usize) -> Self {
         if level == 0 {
-            return NfaQt::Lit(String::arbitrary(g).chars().into_iter().take(MAX_LIT_LEN).collect());
+            return NfaQt::Lit(
+                String::arbitrary(g)
+                    .chars()
+                    .into_iter()
+                    .take(MAX_LIT_LEN)
+                    .collect(),
+            );
         }
 
-        let choice = g.choose(&[0,1]).unwrap();
+        let choice = g.choose(&[0, 1]).unwrap();
         match choice {
-            0 => {
-                NfaQt::Or{a : Box::new(NfaQt::new(g, level-1)), b : Box::new(NfaQt::new(g, level-1))}
+            0 => NfaQt::Or {
+                a: Box::new(NfaQt::new(g, level - 1)),
+                b: Box::new(NfaQt::new(g, level - 1)),
             },
-            1 => {
-                NfaQt::FollowedBy{a : Box::new(NfaQt::new(g, level-1)), b : Box::new(NfaQt::new(g, level-1))}
+            1 => NfaQt::FollowedBy {
+                a: Box::new(NfaQt::new(g, level - 1)),
+                b: Box::new(NfaQt::new(g, level - 1)),
             },
-            _ => unreachable!("not a valid choice")
+            _ => unreachable!("not a valid choice"),
         }
     }
 
     fn build_matches(&self) -> HashSet<String> {
         match self {
-            NfaQt::Lit(x) => {iter::once(x.to_string()).collect()}
+            NfaQt::Lit(x) => iter::once(x.to_string()).collect(),
             NfaQt::Or { a, b } => {
                 let mut res = a.build_matches();
                 res.extend(b.build_matches());
@@ -60,9 +68,9 @@ impl NfaQt {
         }
     }
 
-    fn build_nfa(&self) -> NFA::<usize> {
+    fn build_nfa(&self) -> NFA<usize> {
         match self {
-            NfaQt::Lit(x) => {NFA::literal(x)}
+            NfaQt::Lit(x) => NFA::literal(x),
             NfaQt::Or { a, b } => {
                 let nfa = a.build_nfa();
                 let nfb = b.build_nfa();
@@ -78,29 +86,23 @@ impl NfaQt {
     }
 }
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct NFAQtCase {
-    pub kind : NfaQt,
+    pub kind: NfaQt,
     pub matches: HashSet<String>,
-    pub nfa: NFA::<usize>,
+    pub nfa: NFA<usize>,
 }
 
 impl Arbitrary for NFAQtCase {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let limit = DEBTH;
         let mut level = g.size();
-        level = if level <= limit { level} else {limit};
+        level = if level <= limit { level } else { limit };
 
         let kind = NfaQt::new(g, level);
         let matches = kind.build_matches();
         let nfa = kind.build_nfa();
 
-
-        Self {
-            kind,
-            matches,
-            nfa,
-        }
+        Self { kind, matches, nfa }
     }
 }

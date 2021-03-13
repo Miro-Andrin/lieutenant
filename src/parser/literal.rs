@@ -1,4 +1,4 @@
-use super::parser::Parser;
+use super::parser::IterParser;
 use anyhow::{anyhow, Result};
 
 /// A literal should not have leading or trailing whitespaces.
@@ -6,7 +6,13 @@ pub struct Literal {
     pub(crate) value: String,
 }
 
-impl Parser for Literal {
+impl Literal {
+    pub fn new(value: String) -> Self {
+        Self { value }
+    }
+}
+
+impl IterParser for Literal {
     type Extract = ();
     type ParserState = ();
 

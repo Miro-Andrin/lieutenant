@@ -1,6 +1,6 @@
 use crate::generic::Tuple;
 
-use super::parser::Parser;
+use super::parser::IterParser;
 
 pub struct Opt<P> {
     pub(crate) parser: P,
@@ -18,7 +18,7 @@ impl<State: Default> Default for OptState<State> {
     }
 }
 
-impl<P: Parser> Parser for Opt<P>
+impl<P: IterParser> IterParser for Opt<P>
 where
     P::Extract: Tuple,
     P::ParserState: Default,

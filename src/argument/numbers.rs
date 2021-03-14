@@ -1,25 +1,25 @@
-use anyhow::{Error, bail};
 
 use crate::parser::IterParser;
 
+use super::Argument;
 
 
-struct I32Parser {}
 
-impl IterParser for I32Parser {
-    type Extract = (i32,);
+pub struct U32Parser {}
+
+impl IterParser for U32Parser {
+    type Extract = (u32,);
 
     type ParserState = ();
 
     fn parse<'p>(
         &self,
-        state: Self::ParserState,
+        _state: Self::ParserState,
         input: &'p str,
     ) -> (
         anyhow::Result<(Self::Extract, &'p str)>,
         Option<Self::ParserState>,
     ) {
-        let number = 0;
         // Consume digit from head of input
         
 
@@ -40,7 +40,7 @@ impl IterParser for I32Parser {
             index = i
         }
 
-        match input[0..=index].parse::<i32>() {
+        match input[0..=index].parse::<u32>() {
             Ok(number) => {
                 return (Ok(((number,),input)), None)
             }
@@ -55,6 +55,16 @@ impl IterParser for I32Parser {
     fn regex(&self) -> String {
         "(+|-)?\\d+".into()
     }
+}
+
+impl Default for U32Parser {
+    fn default() -> Self {
+        Self{}
+    }
+}
+
+impl Argument<()> for u32 {
+    type Parser = U32Parser;
 }
 
 

@@ -17,7 +17,6 @@ impl CommandId {
 
 pub trait Command<GameState, Res> {
     fn call(&self, gamestate: GameState, input: &str) -> Result<Res, GameState>;
-
     fn regex(&self) -> String;
 }
 

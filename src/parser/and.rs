@@ -1,6 +1,3 @@
-use core::fmt;
-use std::fmt::Debug;
-
 use crate::generic::{Combine, CombinedTuples, Tuple};
 
 use super::parser::IterParser;
@@ -51,7 +48,7 @@ where
         //     (Some(_), Some(_), Some(_)) => {}
         // }
         match &self.a_ext {
-            Some((ext, pos)) => write!(
+            Some((_ext, pos)) => write!(
                 f,
                 "(AndState: a_state: {:?}, b_state: {:?}, a_ext: Some((ext:???, pos:{})) )",
                 self.a_state, self.b_state, pos
@@ -68,7 +65,7 @@ where
 impl<A, B> IterParser for And<A, B>
 where
     A: IterParser,
-    // A::Extract: Clone,
+    A::Extract: Clone, // I would love some help trying to remove this clone. 
     B: IterParser,
     <<A as IterParser>::Extract as Tuple>::HList:
         Combine<<<B as IterParser>::Extract as Tuple>::HList>,
@@ -357,23 +354,22 @@ where
 }
 
 mod tests {
-    use crate::parser::{and::And, evaluator::Evaluator, literal::Literal, optional::Opt};
 
     #[test]
     fn simple() {
-        let lit1 = Literal {
+        let lit1 = crate::parser::Literal {
             value: String::from("tp"),
         };
 
-        let lit2 = Literal {
+        let lit2 = crate::parser::Literal {
             value: String::from("me"),
         };
 
-        let and = And { a: lit1, b: lit2 };
+        let and = crate::parser::And { a: lit1, b: lit2 };
 
         let input = "tp me";
 
-        let eval = Evaluator::new(&and);
+        let eval = crate::parser::Evaluator::new(&and);
 
         let res = eval.evaluate_all(input);
 
@@ -384,19 +380,19 @@ mod tests {
 
     #[test]
     fn simple_opt_1() {
-        let and = And {
-            a: Opt {
-                parser: Literal {
+        let and = crate::parser::And {
+            a: crate::parser::Opt {
+                parser: crate::parser::Literal {
                     value: String::from("tp"),
                 },
             },
-            b: Literal {
+            b: crate::parser::Literal {
                 value: String::from("me"),
             },
         };
 
         let input = &mut "tp me";
-        let eval = Evaluator::new(&and);
+        let eval = crate::parser::Evaluator::new(&and);
         let res = eval.evaluate_all(input);
 
         assert!(res.len() == 2);
@@ -406,21 +402,21 @@ mod tests {
 
     #[test]
     fn simple_opt_2() {
-        let lit1 = Literal {
+        let lit1 = crate::parser::Literal {
             value: String::from("tp"),
         };
 
-        let opt1 = Opt { parser: lit1 };
+        let opt1 = crate::parser::Opt { parser: lit1 };
 
-        let lit2 = Literal {
+        let lit2 = crate::parser::Literal {
             value: String::from("me"),
         };
 
-        let and = And { a: opt1, b: lit2 };
+        let and = crate::parser::And { a: opt1, b: lit2 };
 
         let input = "me ";
 
-        let eval = Evaluator::new(&and);
+        let eval = crate::parser::Evaluator::new(&and);
 
         let res = eval.evaluate_all(input);
 
@@ -431,23 +427,23 @@ mod tests {
 
     #[test]
     fn simple_opt_3() {
-        let lit1 = Literal {
+        let lit1 = crate::parser::Literal {
             value: String::from("tp"),
         };
 
-        let opt1 = Opt { parser: lit1 };
+        let opt1 = crate::parser::Opt { parser: lit1 };
 
-        let lit2 = Literal {
+        let lit2 = crate::parser::Literal {
             value: String::from("me"),
         };
 
-        let opt2 = Opt { parser: lit2 };
+        let opt2 = crate::parser::Opt { parser: lit2 };
 
-        let and = And { a: opt1, b: opt2 };
+        let and = crate::parser::And { a: opt1, b: opt2 };
 
         let input = " ";
 
-        let eval = Evaluator::new(&and);
+        let eval = crate::parser::Evaluator::new(&and);
 
         let res = eval.evaluate_all(input);
 
@@ -460,23 +456,23 @@ mod tests {
     #[test]
     fn simple_opt_4() {
         for word in vec!["tp", "tango", "121", "œeœ", "ࢰࢰ", "😈😈😈"] {
-            let lit1 = Literal {
+            let lit1 = crate::parser::Literal {
                 value: String::from(word),
             };
 
-            let opt1 = Opt { parser: lit1 };
+            let opt1 = crate::parser::Opt { parser: lit1 };
 
-            let lit2 = Literal {
+            let lit2 = crate::parser::Literal {
                 value: String::from(word),
             };
 
-            let opt2 = Opt { parser: lit2 };
+            let opt2 = crate::parser::Opt { parser: lit2 };
 
-            let and = And { a: opt1, b: opt2 };
+            let and = crate::parser::And { a: opt1, b: opt2 };
 
             let input = format!("{} {}", word, word);
 
-            let eval = Evaluator::new(&and);
+            let eval = crate::parser::Evaluator::new(&and);
 
             let res = eval.evaluate_all(input.as_str());
 

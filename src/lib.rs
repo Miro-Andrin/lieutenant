@@ -14,7 +14,9 @@ extern crate quickcheck_macros;
 
 #[cfg(test)]
 mod tests {
-    use crate::command::builder::CommandBuilder;
+    use std::default;
+
+    use crate::{argument::U32Parser, command::builder::CommandBuilder, parser::{self, Literal}};
     // //use crate::command::CommandBuilder;
     // use crate::{
     //     //command::{literal, Command},
@@ -23,8 +25,8 @@ mod tests {
 
     #[test]
     fn simple() {
-        let command = CommandBuilder::new().arg().build(|x: u32|  {move |state: &mut u32|{println!("hello")}});
-
+        let command = CommandBuilder::<Literal,u32,u32>::new().parser(U32Parser::default()).build(|x: u32| {println!("hello"); 0});
+        command.call()
 
         // let command = literal("tp")
         //     .arg()
@@ -73,26 +75,26 @@ mod tests {
     // }
 }
 
-#[macro_export]
-macro_rules! regex_validator {
-    ($ident:ty, $regex:literal) => {
-        impl Validator for $ident {
-            fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
-            where
-                'a: 'b,
-            {
-                use lazy_static::lazy_static;
-                use regex::Regex;
-                lazy_static! {
-                    static ref RE: Regex = Regex::new($regex).unwrap();
-                };
-                if let Some(m) = RE.find(input) {
-                    let input = &input[m.end()..];
-                    (true, input)
-                } else {
-                    (false, input)
-                }
-            }
-        }
-    };
-}
+// #[macro_export]
+// macro_rules! regex_validator {
+//     ($ident:ty, $regex:literal) => {
+//         impl Validator for $ident {
+//             fn validate<'a, 'b>(&self, input: &'a str) -> (bool, &'b str)
+//             where
+//                 'a: 'b,
+//             {
+//                 use lazy_static::lazy_static;
+//                 use regex::Regex;
+//                 lazy_static! {
+//                     static ref RE: Regex = Regex::new($regex).unwrap();
+//                 };
+//                 if let Some(m) = RE.find(input) {
+//                     let input = &input[m.end()..];
+//                     (true, input)
+//                 } else {
+//                     (false, input)
+//                 }
+//             }
+//         }
+//     };
+// }

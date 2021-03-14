@@ -383,10 +383,6 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         Ok(nfa)
     }
 
-    pub fn assosiate(&mut self, id: StateId, value: A) -> anyhow::Result<()> {
-        self[id].associate_with(value);
-        Ok(())
-    }
 
     pub fn assosiate_ends(&mut self, value: A) {
         for e in &self.ends {

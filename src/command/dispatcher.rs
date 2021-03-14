@@ -8,7 +8,7 @@ use crate::{
 use super::command::CommandId;
 
 struct Dispatcher<'a, GameState, Res> {
-    // TODO should maybe use a slab, so that we can remove commands, without having to recalculate the dfa.
+    // Should maybe use a slab, so that we can remove commands, without having to recalculate the dfa.
     commands: Vec<Box<dyn Command<&'a mut GameState, Res>>>,
     dfa: Option<DFA<CommandId>>,
 }

@@ -1,17 +1,20 @@
 use super::parser::IterParser;
 
-pub struct Evaluator<'p, P> {
+/*
+This file contains  convenience struct that i use for testing.
+*/
+pub(crate) struct Evaluator<'p, P> {
     parser: &'p P,
 }
 
 impl<'p, P: IterParser> Evaluator<'p, P> {
-    pub fn new(parser: &'p P) -> Self {
+    pub(crate) fn new(parser: &'p P) -> Self {
         Self { parser }
     }
 }
 
 impl<'p, P: IterParser> Evaluator<'p, P> {
-    pub fn evaluate<'i>(&self, input: &'i str) -> (Option<P::Extract>, &'i str) {
+    pub(crate) fn evaluate<'i>(&self, input: &'i str) -> (Option<P::Extract>, &'i str) {
         let mut state = Some(P::ParserState::default());
 
         while let Some(st) = state {
@@ -28,7 +31,7 @@ impl<'p, P: IterParser> Evaluator<'p, P> {
         (None, input)
     }
 
-    pub fn evaluate_all<'i>(&self, input: &'i str) -> Vec<anyhow::Result<(P::Extract, &'i str)>> {
+    pub(crate) fn evaluate_all<'i>(&self, input: &'i str) -> Vec<anyhow::Result<(P::Extract, &'i str)>> {
         let mut result = Vec::new();
 
         let mut state = Some(P::ParserState::default());

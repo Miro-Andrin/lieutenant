@@ -1,5 +1,5 @@
 use super::IterParser;
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow};
 
 #[derive(Debug)]
 pub enum OnceState {

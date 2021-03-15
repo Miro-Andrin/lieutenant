@@ -1,6 +1,6 @@
-use std::{collections::HashSet, iter};
-use quickcheck::Arbitrary;
 use crate::regex::NFA;
+use quickcheck::Arbitrary;
+use std::{collections::HashSet, iter};
 
 const MAX_LIT_LEN: usize = 2; // How many chars the string literals should be.
 const DEBTH: usize = 5; // How deep the nfa should be.

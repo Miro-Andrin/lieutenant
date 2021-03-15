@@ -1,5 +1,6 @@
 use crate::generic::Tuple;
 
+
 pub trait IterParser {
     /// This assosiated type says what the return value is for the parser. If you have a parser that returns a i32, then set it to Extract = (i32,), or
     /// if you dont want it returning anythin use Extract = ()
@@ -27,14 +28,70 @@ pub trait IterParser {
     /// to be able to parse json then a suitable regex could be "\{.*?\}". Using this regex we can quickly determine what command
     /// a input belongs to.
     fn regex(&self) -> String;
+
 }
 
-trait Parser {
-    type Extract;
 
-    fn parse<'p>(&self, input: &'p str) -> (anyhow::Result<(Self::Extract, &'p str)>,);
+// This feature cant be implemented before rust gets an upgrade. 
+// https://github.com/rust-lang/rfcs/issues/1053 
 
-    fn regex(&self) -> String;
+// pub trait Parser {
+//     type Extract;
+//     fn parse<'p>(&self, input: &'p str) -> anyhow::Result<(Self::Extract, &'p str)>;
+//     fn regex(&self) -> String;
+// }
 
-    fn into_iter_parser() {}
-}
+// pub struct OnceParser<P: Parser>{
+//     parser: P,
+// }
+
+// impl<P: Parser> IterParser for OnceParser<P> {
+//     type Extract = (P::Extract,);
+//     type ParserState = ();
+
+//     fn parse<'p>(
+//         &self,
+//         _state: Self::ParserState,
+//         input: &'p str,
+//     ) -> (
+//         anyhow::Result<(Self::Extract, &'p str)>,
+//         Option<Self::ParserState>,
+//     ) {
+//         match self.parser.parse(input) {
+//             Ok((e,o)) => {
+//                 (Ok(((e,),o)),None)
+//             }
+//             Err(err) => {
+//                 (Err(err),None)
+//             }
+//         }
+
+//     }
+
+//     fn regex(&self) -> String {
+//         self.parser.regex()
+//     }
+// }
+
+
+// trait AsIterParser {
+//     type ResultingParser;
+//     fn as_iter_parser(self) -> Self::ResultingParser;
+// }
+
+// impl<T> AsIterParser for T where T : IterParser   {
+//     type ResultingParser = T;
+//     fn as_iter_parser(self) -> Self::ResultingParser {
+//         self
+//     }
+// }
+
+// unsafe impl<T> AsIterParser for T where T: Parser {
+//     type ResultingParser = OnceParser<T>;
+
+//     fn as_iter_parser(self) -> Self::ResultingParser {
+//         OnceParser{
+//             parser: self
+//         }
+//     }
+// }

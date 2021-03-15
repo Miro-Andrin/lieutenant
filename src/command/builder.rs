@@ -1,101 +1,70 @@
-use std::marker::PhantomData;
-
+use super::command::CommandSpec;
 use crate::{
     argument::Argument,
-    generic::{Combine, Func, Tuple},
-    parser::{self, And, IterParser, Map, OneOrMoreSpace, Opt},
+    generic::Func,
+    parser::{self, And, IterParser, MaybeSpaces, OneOrMoreSpace},
 };
 
-use super::command::{CommandSpec};
-
-pub struct CommandBuilder<P: IterParser,G,R> {
-    parser: P,
-    gamestate: PhantomData<G>,
-    result: PhantomData<R>
+// use std::marker::PhantomData;
+pub fn space() -> OneOrMoreSpace {
+    OneOrMoreSpace
 }
 
-impl<P: IterParser,Res,GameState> CommandBuilder<P,GameState,Res> {
-    pub fn new() -> CommandBuilder<parser::Literal,GameState,Res> {
-        CommandBuilder::<parser::Literal, GameState,Res> {
-            parser: parser::Literal::new("".to_string()),
-            gamestate : Default::default(),
-            result : Default::default()
-        }
+pub fn literal(value: &str) -> parser::Literal {
+    parser::Literal {
+        value: value.to_string(),
     }
+}
 
-    pub fn arg<S: Default, T: Argument<S>>(
+pub trait CommandBuilder {
+    type Parser: IterParser;
+    fn arg<A: Argument>(self) -> And<Self::Parser, <A as Argument>::Parser>;
+    fn space(self) -> And<Self::Parser, OneOrMoreSpace>;
+    fn followed_by<P: IterParser>(self, parser: P) -> And<Self::Parser, P>;
+    fn on_call<GameState, CommandResult, F1, F2>(
         self,
-    ) -> CommandBuilder<And<P, And<OneOrMoreSpace, T::Parser>>,GameState,Res>
-        
+        f: F1,
+    ) -> CommandSpec<GameState, CommandResult, F1, F2, And<Self::Parser, MaybeSpaces>>
     where
-        <P::Extract as Tuple>::HList: Combine<<<T::Parser as IterParser>::Extract as Tuple>::HList>,
-        <P as parser::parser::IterParser>::Extract: Clone
-    {
-        CommandBuilder {
-            parser: And {
-                a: self.parser,
-                b: And {
-                    a: parser::OneOrMoreSpace::new(),
-                    b: T::Parser::default(),
-                },
-            },
-            gamestate : self.gamestate,
-            result : self.result
+        F1: Func<<Self::Parser as IterParser>::Extract, Output = F2>,
+        F2: Func<GameState, Output = CommandResult>;
+}
+
+impl<T> CommandBuilder for T
+where
+    T: IterParser,
+{
+    type Parser = T;
+
+    fn arg<A: Argument>(self) -> And<Self::Parser, A::Parser> {
+        And {
+            a: self,
+            b: A::Parser::default(),
         }
     }
 
-    pub fn parser<Other: IterParser>(self, it: Other) ->  CommandBuilder<And<P, And<OneOrMoreSpace, Other>>,GameState,Res>
-        where
-            <P::Extract as Tuple>::HList: Combine<<Other::Extract as Tuple>::HList>,
-            <P as parser::parser::IterParser>::Extract: Clone
-    {
-        CommandBuilder {
-            parser: And {
-                a: self.parser,
-                b: And {
-                    a: parser::OneOrMoreSpace::new(),
-                    b: it,
-                },
-            },
-            gamestate : self.gamestate,
-            result : self.result
-        }
+    fn followed_by<P: IterParser>(self, other: P) -> And<Self::Parser, P> {
+        And { a: self, b: other }
     }
 
-    // pub fn opt_arg<S: Default, T: Argument<S>>(
-    //     self,
-    // ) -> CommandBuilder<And<P, Opt<And<OneOrMoreSpace, T::Parser>>>>
-    // where
-    //     <P::Extract as Tuple>::HList: Combine<<<T::Parser as IterParser>::Extract as Tuple>::HList>,
-    // {
-    //     CommandBuilder {
-    //         parser: And {
-    //             a: self.parser,
-    //             b: parser::Opt {
-    //                 parser: parser::And {
-    //                     a: parser::OneOrMoreSpace::new(),
-    //                     b: T::Parser::default(),
-    //                 },
-    //             },
-    //         },
-    //     }
-    // }
-
-    pub fn map<F>(self, map: F) -> Map<P, F>
-    where
-        F: Func<P::Extract>,
-    {
-        parser::Map {
-            parser: self.parser,
-            map,
-        }
+    fn space(self) -> And<Self::Parser, OneOrMoreSpace> {
+        self.followed_by(space())
     }
 
-    pub fn build<F: Func<P::Extract, Output = Res>>(
+    fn on_call<GameState, CommandResult, F1, F2>(
         self,
-        callback: F,
-    ) -> CommandSpec<P, GameState, F> {
-        let mapped = self.map(callback);
-        return CommandSpec::new(mapped.parser);
+        f: F1,
+    ) -> CommandSpec<GameState, CommandResult, F1, F2, And<Self::Parser, MaybeSpaces>>
+    where
+        F1: Func<<Self::Parser as IterParser>::Extract, Output = F2>,
+        F2: Func<GameState, Output = CommandResult>,
+    {
+        CommandSpec {
+            parser: self.followed_by(MaybeSpaces),
+            mapping: f,
+            gamestate: Default::default(),
+            command_result: Default::default(),
+            mapping_result: Default::default(),
+        }
     }
 }

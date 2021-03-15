@@ -65,7 +65,7 @@ where
 impl<A, B> IterParser for And<A, B>
 where
     A: IterParser,
-    A::Extract: Clone, // I would love some help trying to remove this clone. 
+    A::Extract: Clone, // I would love some help trying to remove this clone.
     B: IterParser,
     <<A as IterParser>::Extract as Tuple>::HList:
         Combine<<<B as IterParser>::Extract as Tuple>::HList>,

@@ -7,9 +7,9 @@ use crate::{
 
 use super::command::CommandId;
 
-struct Dispatcher<'a, GameState, Res> {
+pub struct Dispatcher<'a, GameState, Res> {
     // Should maybe use a slab, so that we can remove commands, without having to recalculate the dfa.
-    commands: Vec<Box<dyn Command<&'a mut GameState, Res>>>,
+    commands: Vec<Box<dyn Command<GameState = &'a mut GameState, CommandResult = Res>>>,
     dfa: Option<DFA<CommandId>>,
 }
 
@@ -21,7 +21,7 @@ impl<'a, GameState, Res> Dispatcher<'a, GameState, Res> {
             let aproximation_regex = command.regex();
             let mut command_nfa = NFA::<CommandId>::regex(aproximation_regex.as_str())?;
             command_nfa.assosiate_ends(CommandId::of(index));
-            // can fail if we run out of ids, not very likley.
+            // can fail if we run out of ids, not very likle.
             main_nfa = main_nfa.or(command_nfa)?;
         }
 
@@ -50,21 +50,25 @@ impl<'a, GameState, Res> Dispatcher<'a, GameState, Res> {
 
                         bail!("None of the matching commands was able to parse")
                     }
-                    Err(x) => {
-                        bail!("")
+                    Err(_) => {
+                        bail!("No command matched the given input")
                     }
                 }
             }
             None => {
-                bail!("")
+                bail!("DFA was not initialized, so no command was able to be called")
             }
         }
     }
 
-    // Is not atomic -.- so if this fails we are left in a bad state.
+    // Is not atomic -.- so if dfa building  fails we are left in a bad state.
+    // This can potentially happen if any of the incomming commands use regex features
+    // we dont have implemented.
     pub fn submitt_commands<I>(&mut self, commands: I) -> anyhow::Result<()>
     where
-        I: IntoIterator<Item = Box<dyn Command<&'a mut GameState, Res>>>,
+        I: IntoIterator<
+            Item = Box<dyn Command<GameState = &'a mut GameState, CommandResult = Res>>,
+        >,
     {
         self.commands.extend(commands.into_iter());
         self.build_dfa()?;

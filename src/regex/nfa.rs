@@ -286,7 +286,7 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
     }
 
     // Returns ok, when there are further states to consume
-    fn find_step(
+    fn _find_step(
         &self,
         bytes: &[u8],
         mut current_states: BTreeSet<StateId>,
@@ -312,11 +312,11 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         (Ok(new_states), true)
     }
 
-    pub fn find<T: AsRef<[u8]>>(&self, text: T) -> Result<BTreeSet<StateId>, BTreeSet<StateId>> {
+    pub fn _find<T: AsRef<[u8]>>(&self, text: T) -> Result<BTreeSet<StateId>, BTreeSet<StateId>> {
         let mut bytes = text.as_ref();
         let mut current_states = iter::once(StateId::of(0)).collect::<BTreeSet<_>>();
         loop {
-            match self.find_step(bytes, current_states) {
+            match self._find_step(bytes, current_states) {
                 (Ok(x), false) => {
                     return Ok(x
                         .into_iter()
@@ -383,15 +383,14 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         Ok(nfa)
     }
 
-
     pub fn assosiate_ends(&mut self, value: A) {
         for e in &self.ends {
             let end = &mut self.states[e.0 as usize];
             end.associate_with(value);
         }
     }
-
-    pub fn assosiate_non_ends(&mut self, value: A) {
+    
+    pub fn asssosiate_non_ends(&mut self, value: A) {
         let ends = &self.ends;
         for (id, state) in self.states.iter_mut().enumerate() {
             let state_id = StateId::of(id);
@@ -402,7 +401,7 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         }
     }
 
-    fn end_assosiations(&self) -> HashSet<A> {
+    fn _end_assosiations(&self) -> HashSet<A> {
         let mut result = HashSet::new();
         for e in &self.ends {
             let end = &self.states[e.0 as usize];
@@ -431,24 +430,24 @@ mod tests {
     #[test]
     fn literal() {
         let nfa = NFA::<usize>::literal("hello");
-        assert!(nfa.find("hello").is_ok());
-        assert!(nfa.find("ello").is_err());
-        assert!(nfa.find("hhello").is_err());
-        assert!(nfa.find("helloo").is_err());
-        assert!(nfa.find("helo").is_err());
-        assert!(nfa.find("hxllo").is_err());
+        assert!(nfa._find("hello").is_ok());
+        assert!(nfa._find("ello").is_err());
+        assert!(nfa._find("hhello").is_err());
+        assert!(nfa._find("helloo").is_err());
+        assert!(nfa._find("helo").is_err());
+        assert!(nfa._find("hxllo").is_err());
     }
 
     #[test]
     fn empty() {
         // The empty nfa does not match the empty string.
-        assert!(NFA::<usize>::empty().find("").is_err());
+        assert!(NFA::<usize>::empty()._find("").is_err());
     }
 
     #[test]
     fn empty_lit() {
         let nfa = NFA::<usize>::literal("");
-        assert!(nfa.find("").is_ok());
+        assert!(nfa._find("").is_ok());
     }
 
     #[test]
@@ -456,28 +455,28 @@ mod tests {
         let nfa = NFA::<usize>::literal("")
             .or(NFA::<usize>::literal("a"))
             .unwrap();
-        assert!(nfa.find("").is_ok());
-        assert!(nfa.find("a").is_ok());
-        assert!(nfa.find("b").is_err());
-        assert!(nfa.find("aa").is_err());
+        assert!(nfa._find("").is_ok());
+        assert!(nfa._find("a").is_ok());
+        assert!(nfa._find("b").is_err());
+        assert!(nfa._find("aa").is_err());
     }
 
     #[quickcheck]
     fn literal_param(input: String) -> bool {
         let nfa = NFA::<usize>::literal(input.clone().as_str());
-        nfa.find(input.as_str()).is_ok()
+        nfa._find(input.as_str()).is_ok()
     }
 
     #[test]
     fn empty_literal() {
         let nfa = NFA::<usize>::literal("");
-        assert!(nfa.find("").is_ok());
+        assert!(nfa._find("").is_ok());
     }
 
     #[quickcheck]
     fn literal_param_not_eq(input: String, other: String) -> bool {
         let nfa = NFA::<usize>::literal(input.as_str());
-        nfa.find(other.as_str()).is_ok() == (input.eq(&other))
+        nfa._find(other.as_str()).is_ok() == (input.eq(&other))
     }
 
     #[test]
@@ -492,7 +491,7 @@ mod tests {
                 let tail_nfa = NFA::<usize>::literal(tail);
                 head_nfa.followed_by(tail_nfa).unwrap();
                 assert!(
-                    head_nfa.find(format!("{}{}", head, tail).as_str()).is_ok(),
+                    head_nfa._find(format!("{}{}", head, tail).as_str()).is_ok(),
                     format!("{}{}", head, tail)
                 );
             }
@@ -505,28 +504,28 @@ mod tests {
         let tail_nfa = NFA::<usize>::literal(tail.as_str());
 
         head_nfa.followed_by(tail_nfa).unwrap();
-        head_nfa.find(head.add(tail.as_str()).as_str()).is_ok()
+        head_nfa._find(head.add(tail.as_str()).as_str()).is_ok()
     }
 
     #[quickcheck]
     fn repeat_param0(lit: String) -> bool {
         let head_nfa = NFA::<usize>::literal(lit.as_str());
         let nfa = head_nfa.repeat().unwrap();
-        nfa.find(format!("").as_str()).is_ok()
+        nfa._find(format!("").as_str()).is_ok()
     }
 
     #[quickcheck]
     fn repeat_param1(lit: String) -> bool {
         let head_nfa = NFA::<usize>::literal(lit.as_str());
         let nfa = head_nfa.repeat().unwrap();
-        nfa.find(format!("{}", lit.as_str()).as_str()).is_ok()
+        nfa._find(format!("{}", lit.as_str()).as_str()).is_ok()
     }
 
     #[quickcheck]
     fn repeat_param2(lit: String) -> bool {
         let head_nfa = NFA::<usize>::literal(lit.as_str());
         let nfa = head_nfa.repeat().unwrap();
-        nfa.find(format!("{}{}", lit.as_str(), lit.as_str()).as_str())
+        nfa._find(format!("{}{}", lit.as_str(), lit.as_str()).as_str())
             .is_ok()
     }
 
@@ -539,15 +538,15 @@ mod tests {
             let nfa = head_nfa.repeat().unwrap();
 
             assert!(
-                nfa.find(format!("").as_str()).is_ok(),
+                nfa._find(format!("").as_str()).is_ok(),
                 format!("{} zero", t)
             );
             assert!(
-                nfa.find(format!("{}", t).as_str()).is_ok(),
+                nfa._find(format!("{}", t).as_str()).is_ok(),
                 format!("{} one", t)
             );
             assert!(
-                nfa.find(format!("{}{}", t, t).as_str()).is_ok(),
+                nfa._find(format!("{}{}", t, t).as_str()).is_ok(),
                 format!("{} two", t)
             );
         }
@@ -558,7 +557,7 @@ mod tests {
         let nfa = NFA::<usize>::literal(a.as_str());
         let nfb = NFA::<usize>::literal(b.as_str());
         let or = nfa.or(nfb).unwrap();
-        return or.find(&a).is_ok() && or.find(&b).is_ok();
+        return or._find(&a).is_ok() && or._find(&b).is_ok();
     }
 
     #[quickcheck]
@@ -567,7 +566,7 @@ mod tests {
         let nfb = NFA::<usize>::literal(b.as_str());
         let or = nfa.or(nfb).unwrap();
         if a != c && b != c {
-            return !or.find(&c).is_ok();
+            return !or._find(&c).is_ok();
         } else {
             true
         }
@@ -577,7 +576,7 @@ mod tests {
     fn literal_param_ass(a: String, ass: usize) -> bool {
         let mut nfa = NFA::<usize>::literal(&a);
         nfa.assosiate_ends(ass);
-        nfa.end_assosiations().contains(&ass)
+        nfa._end_assosiations().contains(&ass)
     }
 
     #[quickcheck]
@@ -592,7 +591,7 @@ mod tests {
         nfb.assosiate_ends(bss);
 
         let or = nfa.or(nfb).unwrap();
-        let asses = or.end_assosiations();
+        let asses = or._end_assosiations();
         asses.contains(&ass) && asses.contains(&bss)
     }
 
@@ -609,8 +608,8 @@ mod tests {
 
         let or = nfa.or(nfb).unwrap();
 
-        let a_ends = or.find(a.as_str()).unwrap();
-        let b_ends = or.find(b.as_str()).unwrap();
+        let a_ends = or._find(a.as_str()).unwrap();
+        let b_ends = or._find(b.as_str()).unwrap();
 
         let a_end = a_ends.iter().find(|x| or.ends.contains(x)).unwrap();
         let b_end = b_ends.iter().find(|x| or.ends.contains(x)).unwrap();

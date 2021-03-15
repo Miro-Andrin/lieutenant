@@ -1,5 +1,5 @@
 use super::IterParser;
-use anyhow::{anyhow};
+use anyhow::anyhow;
 
 #[derive(Debug)]
 pub enum OnceState {
@@ -12,8 +12,8 @@ impl Default for OnceState {
     }
 }
 
-pub struct OneOrMoreSpace {}
-pub struct MaybeSpaces {}
+pub struct OneOrMoreSpace;
+pub struct MaybeSpaces;
 
 impl MaybeSpaces {
     pub fn new() -> Self {

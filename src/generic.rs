@@ -123,6 +123,7 @@ macro_rules! generics {
             }
         }
 
+
         impl<F, R, $type> Func<Product!($type)> for F
         where
             F: Fn($type) -> R,

@@ -758,7 +758,7 @@ mod tests {
         let class = ClassUnicodeRange::new(from, to);
         let nfa = NFA::<usize>::from(&class);
 
-        if !(nfa.find(other.to_string().as_str()).is_ok()) {
+        if !(nfa._find(other.to_string().as_str()).is_ok()) {
             let mut from_buff = [0u8; 4];
             from.encode_utf8(&mut from_buff);
             let mut to_buff = [0u8; 4];

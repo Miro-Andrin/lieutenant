@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use anyhow::bail;
-
 use crate::{generic::Func, parser::IterParser};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, std::hash::Hash, Debug)]
@@ -15,42 +13,45 @@ impl CommandId {
     }
 }
 
-pub trait Command<GameState, Res> {
-    fn call(&self, gamestate: GameState, input: &str) -> Result<Res, GameState>;
+pub trait Command {
+    type GameState;
+    type CommandResult;
+
+    fn call(
+        &self,
+        gamestate: Self::GameState,
+        input: &str,
+    ) -> Result<Self::CommandResult, Self::GameState>;
     fn regex(&self) -> String;
 }
 
-pub struct CommandSpec<P, GameState, F> {
-    parser: P,
-    game_state: PhantomData<GameState>,
-    f: PhantomData<F>,
+pub struct CommandSpec<GameState, CommandResult, F1, F2, P> {
+    pub(crate) parser: P,
+    pub(crate) mapping: F1,
+    pub(crate) gamestate: PhantomData<GameState>,
+    pub(crate) command_result: PhantomData<CommandResult>,
+    pub(crate) mapping_result: PhantomData<F2>,
 }
 
-impl<P,GameState,F> CommandSpec<P,GameState,F> {
-    pub fn new(parser: P) -> CommandSpec<P,GameState,F>{
-        Self {
-            parser,
-            game_state: Default::default(),
-            f: Default::default(),
-        }
-    }
-}
-
-impl<Res, P: IterParser, GameState, F> Command<GameState, Res> for CommandSpec<P, GameState, F>
+impl<CommandResult, P: IterParser, GameState, F1, F2, Ext> Command
+    for CommandSpec<GameState, CommandResult, F1, F2, P>
 where
-    
-    F: Func<GameState, Output = Res>,
-    P: IterParser<Extract = (F,)>,
+    F1: Func<Ext, Output = F2>,
+    F2: Func<GameState, Output = CommandResult>,
+    P: IterParser<Extract = Ext>,
 {
+    type GameState = GameState;
+    type CommandResult = CommandResult;
+
     fn regex(&self) -> String {
         self.parser.regex()
     }
 
-    fn call(&self, gamestate: GameState, input: &str) -> Result<Res, GameState> {
+    fn call(&self, gamestate: GameState, input: &str) -> Result<CommandResult, GameState> {
         let mut state = P::ParserState::default();
         loop {
             match self.parser.parse(state, input) {
-                (Ok(((func,), _)), _) => return Ok(func.call(gamestate)),
+                (Ok((ext, _)), _) => return Ok(self.mapping.call(ext).call(gamestate)),
                 (Err(_), None) => {
                     //bail!("Not able to parse input");
                     return Err(gamestate);

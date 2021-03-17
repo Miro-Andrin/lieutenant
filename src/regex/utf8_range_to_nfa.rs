@@ -304,7 +304,7 @@ fn below_or_eq_for_given_length<A: std::hash::Hash + Eq + Copy + std::fmt::Debug
 }
 
 // Modifies the nfa such that it recognises any char that has the length of from, but is bigger or equal to it.
-fn more_or_eq_for_given_length<A: std::hash::Hash + Eq  + Copy + std::fmt::Debug>(
+fn more_or_eq_for_given_length<A: std::hash::Hash + Eq + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     from: [u8; 4],
 ) {
@@ -416,9 +416,7 @@ fn more_or_eq_for_given_length<A: std::hash::Hash + Eq  + Copy + std::fmt::Debug
     }
 }
 
-impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange>
-    for NFA<A>
-{
+impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange> for NFA<A> {
     fn from(range: &ClassUnicodeRange) -> Self {
         let mut start: [u8; 4] = [0; 4];
         range.start().encode_utf8(&mut start);

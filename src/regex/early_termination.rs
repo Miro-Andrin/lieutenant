@@ -31,8 +31,8 @@ pub enum CmdPos<C: Copy + std::hash::Hash + PartialEq + Eq> {
 impl<C: Copy + std::hash::Hash + PartialEq + Eq> CmdPos<C> {
     fn value(&self) -> &C {
         match self {
-            CmdPos::End(c) => {c}
-            CmdPos::Mid(c) => {c}
+            CmdPos::End(c) => c,
+            CmdPos::Mid(c) => c,
         }
     }
 
@@ -81,31 +81,26 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
             let is_end = nfa_ids.iter().any(|id| self.is_end(id));
             let dfa_id = nfa_to_dfa[&nfa_ids];
 
-
             let unique_assoc: Option<C> = {
                 let mut unique_assoc: Option<C> = None;
-                for state in  nfa_ids.iter().map(|id| self[*id].clone()){
+                for state in nfa_ids.iter().map(|id| self[*id].clone()) {
                     let assocs = state.assosiations;
-                    
+
                     if assocs.len() > 1 {
                         unique_assoc = None;
-                        break;    
+                        break;
                     }
-                    
+
                     match (unique_assoc, assocs.iter().next()) {
                         (None, None) => {
                             unique_assoc = None;
                         }
-                        (None, Some(x)) => {
-                            unique_assoc = Some(*x.value())
-                        }
-                        (Some(x), None) => {
-                            unique_assoc = Some(x)
-                        }
+                        (None, Some(x)) => unique_assoc = Some(*x.value()),
+                        (Some(x), None) => unique_assoc = Some(x),
                         (Some(a), Some(b)) => {
                             if a != *b.value() {
                                 unique_assoc = None;
-                                break; 
+                                break;
                             }
                         }
                     }
@@ -119,7 +114,6 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
                 dfa.set_transitions(dfa_id.clone(), vec![None; 256]);
                 continue;
             }
-
 
             // For each possible input symbol
             for b in 0..=255 as u8 {
@@ -171,27 +165,38 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
     }
 }
 
-impl <C: Copy + std::hash::Hash + Eq + std::fmt::Debug> DFA<CmdPos<C>> {
-    
-    pub fn early_termination_find(&self, input: &str) -> Result<Vec<C>,Vec<C>>  {
+impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> DFA<CmdPos<C>> {
+    pub fn early_termination_find(&self, input: &str) -> Result<Vec<C>, Vec<C>> {
         match self.find(input) {
             Ok(id) => {
-                let x = self.assosiations(id).into_iter().filter(|cp| cp.is_end()).map(|cp| *cp.value()).collect();
+                let x = self
+                    .assosiations(id)
+                    .into_iter()
+                    .filter(|cp| cp.is_end())
+                    .map(|cp| *cp.value())
+                    .collect();
                 Ok(x)
             }
             Err(id) => {
-                let ends: Vec<C> = self.assosiations(id).into_iter().filter(|cp| cp.is_end()).map(|cp| *cp.value()).collect();
+                let ends: Vec<C> = self
+                    .assosiations(id)
+                    .into_iter()
+                    .filter(|cp| cp.is_end())
+                    .map(|cp| *cp.value())
+                    .collect();
                 if ends.len() > 0 {
                     Ok(ends)
                 } else {
-                    Err(self.assosiations(id).into_iter().map(|cp| *cp.value()).collect())
+                    Err(self
+                        .assosiations(id)
+                        .into_iter()
+                        .map(|cp| *cp.value())
+                        .collect())
                 }
             }
         }
-
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -204,19 +209,19 @@ mod tests {
     #[test]
     fn simple_assosiated_value_check_literal() {
         let nfa = NFA::<CmdPos<usize>>::from_commnd_regex("his", 0).unwrap();
-        let nfa = nfa.or(NFA::<CmdPos<usize>>::from_commnd_regex("hos", 1).unwrap()).unwrap();
+        let nfa = nfa
+            .or(NFA::<CmdPos<usize>>::from_commnd_regex("hos", 1).unwrap())
+            .unwrap();
 
         let dfa: DFA<CmdPos<usize>> = nfa.into_early_termination_dfa();
-        println!("{:?}",dfa);
+        println!("{:?}", dfa);
 
         match dfa.early_termination_find("hi") {
-            Ok(x) => {
-            }
+            Ok(x) => {}
             Err(x) => {
-                println!("{:?}",x);
+                println!("{:?}", x);
                 assert!(false)
             }
         }
     }
-
 }

@@ -7,7 +7,7 @@ pub mod parser;
 mod space;
 
 pub use and::*;
-#[cfg(test)] 
+#[cfg(test)]
 pub(crate) use evaluator::*;
 pub use literal::*;
 pub use map::*;

@@ -232,7 +232,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
             // @TODO might need to change this back.
             let mut state = other.states[other_index].clone();
             //let mut state = mem::take(other.states.index_mut(other_index));
-            
+
             // When adding the states from 'other' all the StateId's are shifted by 'state_ofset'
             state.table = state
                 .table
@@ -391,7 +391,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
             end.associate_with(value);
         }
     }
-    
+
     pub fn asssosiate_non_ends(&mut self, value: A) {
         let ends = &self.ends;
         for (id, state) in self.states.iter_mut().enumerate() {

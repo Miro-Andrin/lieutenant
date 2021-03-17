@@ -1,6 +1,5 @@
 use crate::generic::Tuple;
 
-
 pub trait IterParser {
     /// This assosiated type says what the return value is for the parser. If you have a parser that returns a i32, then set it to Extract = (i32,), or
     /// if you dont want it returning anythin use Extract = ()
@@ -28,12 +27,10 @@ pub trait IterParser {
     /// to be able to parse json then a suitable regex could be "\{.*?\}". Using this regex we can quickly determine what command
     /// a input belongs to.
     fn regex(&self) -> String;
-
 }
 
-
-// This feature cant be implemented before rust gets an upgrade. 
-// https://github.com/rust-lang/rfcs/issues/1053 
+// This feature cant be implemented before rust gets an upgrade.
+// https://github.com/rust-lang/rfcs/issues/1053
 
 // pub trait Parser {
 //     type Extract;
@@ -72,7 +69,6 @@ pub trait IterParser {
 //         self.parser.regex()
 //     }
 // }
-
 
 // trait AsIterParser {
 //     type ResultingParser;

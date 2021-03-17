@@ -1,24 +1,22 @@
-
-#[cfg(test)] 
+#[cfg(test)]
 use super::parser::IterParser;
 
 /*
 This file contains  convenience struct that i use for testing.
 */
 
-#[cfg(test)] 
+#[cfg(test)]
 pub(crate) struct Evaluator<'p, P> {
     parser: &'p P,
 }
-#[cfg(test)] 
+#[cfg(test)]
 impl<'p, P: IterParser> Evaluator<'p, P> {
     pub(crate) fn new(parser: &'p P) -> Self {
         Self { parser }
     }
 }
-#[cfg(test)] 
+#[cfg(test)]
 impl<'p, P: IterParser> Evaluator<'p, P> {
-    
     pub(crate) fn evaluate_all<'i>(
         &self,
         input: &'i str,

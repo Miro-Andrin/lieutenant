@@ -6,14 +6,14 @@ use anyhow::{bail, Result};
 
 use crate::regex::NFA;
 
-fn regex_to_nfa<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug>(
+fn regex_to_nfa<A: std::hash::Hash + Eq + Copy  + std::fmt::Debug>(
     regex: &str,
 ) -> Result<NFA<A>> {
     let hir = Parser::new().parse(regex)?;
     hir_to_nfa(&hir)
 }
 
-fn hir_to_nfa<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug>(
+fn hir_to_nfa<A: std::hash::Hash + Eq + Copy  + std::fmt::Debug>(
     hir: &regex_syntax::hir::Hir,
 ) -> Result<NFA<A>> {
     match hir.kind() {
@@ -99,7 +99,7 @@ fn hir_to_nfa<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug>(
     }
 }
 
-impl<A: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug> NFA<A> {
+impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> NFA<A> {
     pub fn regex(string: &str) -> anyhow::Result<NFA<A>> {
         regex_to_nfa(string)
     }

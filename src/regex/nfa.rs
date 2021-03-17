@@ -12,7 +12,7 @@ use std::{
     usize,
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NfaState<A> {
     // The first element should always be present. This is so that the zeros in the byteclass point to something.
     // The first element would almost always be a empty vec.  This is so that the zeros in the byteclass would signal a failed pars.
@@ -118,7 +118,7 @@ impl<A: std::hash::Hash> Index<(StateId, u8)> for NFA<A> {
     }
 }
 
-impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
+impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
     /// Does not match anything, not even a enpty string.
     pub(crate) fn empty() -> Self {
         Self {
@@ -229,8 +229,10 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
         let state_ofset = self.states.len();
 
         for other_index in 0..other.states.len() {
-            let mut state = mem::take(other.states.index_mut(other_index));
-
+            // @TODO might need to change this back.
+            let mut state = other.states[other_index].clone();
+            //let mut state = mem::take(other.states.index_mut(other_index));
+            
             // When adding the states from 'other' all the StateId's are shifted by 'state_ofset'
             state.table = state
                 .table
@@ -412,7 +414,7 @@ impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
     }
 }
 
-impl<A: Eq + hash::Hash + Default + Debug + Copy> From<Range<u8>> for NFA<A> {
+impl<A: Eq + hash::Hash + Copy + Debug> From<Range<u8>> for NFA<A> {
     fn from(range: Range<u8>) -> Self {
         let mut nfa = NFA::<A>::empty();
         let a = nfa.push_state();

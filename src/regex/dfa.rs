@@ -127,7 +127,7 @@ impl<A: std::hash::Hash + Eq + Clone> DFA<A> {
         if self.ends.contains(&current) {
             Ok(current)
         } else {
-            Err(previus)
+            Err(current)
         }
     }
 }

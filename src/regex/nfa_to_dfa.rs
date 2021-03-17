@@ -10,7 +10,7 @@ use std::{
     iter,
 };
 
-impl<A: Copy + Default + Eq + std::hash::Hash + Debug> NFA<A> {
+impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
     /// Goes through all the states in 'from' and adds all the states one can get to by using epsilon
     /// transitions.
     pub(crate) fn epsilon_closure(&self, from: BTreeSet<StateId>) -> BTreeSet<StateId> {

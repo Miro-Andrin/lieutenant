@@ -37,7 +37,7 @@ const FOURTH: RangeInclusive<u8> = 240..=247;
 */
 
 // This is used for the 2 byte onwards
-fn between2<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
+fn between2<A: std::hash::Hash + Eq + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     from: [u8; 2],
     to: [u8; 2],
@@ -91,7 +91,7 @@ fn between2<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
 }
 
 // This is used for the 2 byte onwards
-fn between3<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
+fn between3<A: std::hash::Hash + Eq + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     from: [u8; 3],
     to: [u8; 3],
@@ -147,7 +147,7 @@ fn between3<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
     }
 }
 
-fn any_char_of_length<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
+fn any_char_of_length<A: std::hash::Hash + Eq + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     n: usize,
 ) {
@@ -191,7 +191,7 @@ fn any_char_of_length<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug
 }
 
 /// Modifies the nfa such that it recognises any char that has the length of from, but is less then or equal to it
-fn below_or_eq_for_given_length<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
+fn below_or_eq_for_given_length<A: std::hash::Hash + Eq + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     from: [u8; 4],
 ) {
@@ -304,7 +304,7 @@ fn below_or_eq_for_given_length<A: std::hash::Hash + Eq + Default + Copy + std::
 }
 
 // Modifies the nfa such that it recognises any char that has the length of from, but is bigger or equal to it.
-fn more_or_eq_for_given_length<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug>(
+fn more_or_eq_for_given_length<A: std::hash::Hash + Eq  + Copy + std::fmt::Debug>(
     nfa: &mut NFA<A>,
     from: [u8; 4],
 ) {
@@ -416,7 +416,7 @@ fn more_or_eq_for_given_length<A: std::hash::Hash + Eq + Default + Copy + std::f
     }
 }
 
-impl<A: std::hash::Hash + Eq + Default + Copy + std::fmt::Debug> From<&ClassUnicodeRange>
+impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange>
     for NFA<A>
 {
     fn from(range: &ClassUnicodeRange) -> Self {

@@ -2,7 +2,7 @@ use super::stateid::StateId;
 use super::{dfa::DFA, NFA};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    iter, usize,
+    iter,
 };
 
 // This file implements early termination for dfa's. If we at some state in the

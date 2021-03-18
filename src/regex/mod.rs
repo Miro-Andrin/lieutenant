@@ -1,7 +1,7 @@
 mod byteclass;
 pub mod dfa;
 mod dfa_minimize;
-mod early_termination;
+pub mod early_termination;
 pub mod nfa;
 mod nfa_to_dfa;
 mod qc;

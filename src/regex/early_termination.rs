@@ -208,9 +208,9 @@ mod tests {
 
     #[test]
     fn simple_assosiated_value_check_literal() {
-        let nfa = NFA::<CmdPos<usize>>::from_commnd_regex("his", 0).unwrap();
+        let nfa = NFA::<CmdPos<usize>>::from_command_regex("his", 0).unwrap();
         let nfa = nfa
-            .or(NFA::<CmdPos<usize>>::from_commnd_regex("hos", 1).unwrap())
+            .or(NFA::<CmdPos<usize>>::from_command_regex("hos", 1).unwrap())
             .unwrap();
 
         let dfa: DFA<CmdPos<usize>> = nfa.into_early_termination_dfa();

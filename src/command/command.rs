@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use anyhow::bail;
+
 use crate::{generic::Func, parser::IterParser};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, std::hash::Hash, Debug)]
@@ -21,7 +23,7 @@ pub trait Command {
         &self,
         gamestate: Self::GameState,
         input: &str,
-    ) -> Result<Self::CommandResult, Self::GameState>;
+    ) -> Result<Self::CommandResult,()>;
     fn regex(&self) -> String;
 }
 
@@ -47,17 +49,32 @@ where
         self.parser.regex()
     }
 
-    fn call(&self, gamestate: GameState, input: &str) -> Result<CommandResult, GameState> {
+    fn call(&self, gamestate: GameState, input: &str) -> Result<CommandResult, ()> {
         let mut state = P::ParserState::default();
         loop {
             match self.parser.parse(state, input) {
                 (Ok((ext, _)), _) => return Ok(self.mapping.call(ext).call(gamestate)),
                 (Err(_), None) => {
                     //bail!("Not able to parse input");
-                    return Err(gamestate);
+                    return Err(());
                 }
                 (Err(_), Some(next_state)) => state = next_state,
             }
         }
     }
 }
+
+fn command_to_func<C: Command>(cmd: C) -> impl FnMut(C::GameState, &str,&mut C::CommandResult) -> bool {
+    move |game_state, input, result: &mut C::CommandResult| {
+        match cmd.call(game_state, input) {
+            Ok(res) => {
+                *result = res;
+                true
+            }
+            Err(_) => {
+                false
+            }
+        }
+    }
+}
+

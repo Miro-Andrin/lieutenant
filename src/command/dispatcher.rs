@@ -29,7 +29,7 @@ impl<'a, GameState, Res> Dispatcher<'a, GameState, Res> {
         Ok(())
     }
 
-    pub fn call(&self, mut gamestate: &'a mut GameState, input: &str) -> anyhow::Result<Res> {
+    pub fn call(&self, gamestate: &'a mut GameState, input: &str) -> anyhow::Result<Res> {
         match &self.dfa {
             Some(dfa) => {
                 match dfa.find(input) {
@@ -42,9 +42,7 @@ impl<'a, GameState, Res> Dispatcher<'a, GameState, Res> {
                             let command = &self.commands[command_id.id];
                             match command.call(gamestate, input) {
                                 Ok(x) => return Ok(x),
-                                Err(x) => {
-                                    gamestate = x;
-                                }
+                                Err(_) => bail!("Failed to parse input") 
                             }
                         }
 

@@ -120,7 +120,7 @@ impl<A: std::hash::Hash> Index<(StateId, u8)> for NFA<A> {
 
 impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
     /// Does not match anything, not even a enpty string.
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             states: vec![NfaState::empty()],
             translations: iter::once(ByteClass::empty()).collect::<IndexSet<ByteClass>>(),

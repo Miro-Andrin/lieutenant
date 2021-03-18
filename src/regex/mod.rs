@@ -10,5 +10,6 @@ pub mod stateid;
 mod utf8_range_to_nfa;
 
 pub use nfa::*;
-pub use nfa::*;
+pub use dfa::*;
 pub use stateid::*;
+pub use early_termination::*;

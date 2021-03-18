@@ -1,8 +1,8 @@
-mod argument;
+pub mod argument;
 pub mod command;
 mod generic;
 pub mod parser;
-mod regex;
+pub mod regex;
 
 #[cfg(test)]
 extern crate quickcheck;

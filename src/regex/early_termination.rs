@@ -45,14 +45,14 @@ impl<C: Copy + std::hash::Hash + PartialEq + Eq> CmdPos<C> {
 }
 
 impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
-    fn from_commnd_regex(regex: &str, id: C) -> anyhow::Result<Self> {
+    pub fn from_command_regex(regex: &str, id: C) -> anyhow::Result<Self> {
         let mut nfa = NFA::<CmdPos<C>>::regex(regex)?;
         nfa.assosiate_ends(CmdPos::End(id));
         nfa.asssosiate_non_ends(CmdPos::Mid(id));
         Ok(nfa)
     }
 
-    fn into_early_termination_dfa(self) -> DFA<CmdPos<C>> {
+    pub fn into_early_termination_dfa(self) -> DFA<CmdPos<C>> {
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
         let mut dfa = DFA::new();
 

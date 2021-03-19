@@ -19,11 +19,7 @@ pub trait Command {
     type GameState;
     type CommandResult;
 
-    fn call(
-        &self,
-        gamestate: Self::GameState,
-        input: &str,
-    ) -> Result<Self::CommandResult,()>;
+    fn call(&self, gamestate: Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
     fn regex(&self) -> String;
 }
 
@@ -49,14 +45,13 @@ where
         self.parser.regex()
     }
 
-    fn call(&self, gamestate: GameState, input: &str) -> Result<CommandResult, ()> {
+    fn call(&self, gamestate: GameState, input: &str) -> anyhow::Result<CommandResult> {
         let mut state = P::ParserState::default();
         loop {
             match self.parser.parse(state, input) {
                 (Ok((ext, _)), _) => return Ok(self.mapping.call(ext).call(gamestate)),
                 (Err(_), None) => {
-                    //bail!("Not able to parse input");
-                    return Err(());
+                    bail!("Not able to parse input");
                 }
                 (Err(_), Some(next_state)) => state = next_state,
             }
@@ -64,17 +59,8 @@ where
     }
 }
 
-fn command_to_func<C: Command>(cmd: C) -> impl FnMut(C::GameState, &str,&mut C::CommandResult) -> bool {
-    move |game_state, input, result: &mut C::CommandResult| {
-        match cmd.call(game_state, input) {
-            Ok(res) => {
-                *result = res;
-                true
-            }
-            Err(_) => {
-                false
-            }
-        }
-    }
+fn command_to_func<C: Command>(
+    cmd: C,
+) -> impl FnMut(C::GameState, &str) -> anyhow::Result<C::CommandResult> {
+    move |game_state, input| cmd.call(game_state, input)
 }
-

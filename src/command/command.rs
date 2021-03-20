@@ -19,7 +19,7 @@ pub trait Command {
     type GameState;
     type CommandResult;
 
-    fn call(&self, gamestate: &mut Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
+    fn call(&self, gamestate: Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
     fn regex(&self) -> String;
 }
 

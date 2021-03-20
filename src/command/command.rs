@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::bail;
 
-use crate::{generic::Func, parser::IterParser};
+use crate::{generic::{Func, Tuple}, parser::IterParser};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, std::hash::Hash, Debug)]
 pub struct CommandId {
@@ -19,7 +19,7 @@ pub trait Command {
     type GameState;
     type CommandResult;
 
-    fn call(&self, gamestate: Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
+    fn call(&self, gamestate: &mut Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
     fn regex(&self) -> String;
 }
 
@@ -45,7 +45,7 @@ where
         self.parser.regex()
     }
 
-    fn call(&self, gamestate: GameState, input: &str) -> anyhow::Result<CommandResult> {
+    fn call(&self, gamestate: &mut GameState, input: &str) -> anyhow::Result<CommandResult> {
         let mut state = P::ParserState::default();
         loop {
             match self.parser.parse(state, input) {
@@ -57,10 +57,4 @@ where
             }
         }
     }
-}
-
-fn command_to_func<C: Command>(
-    cmd: C,
-) -> impl FnMut(C::GameState, &str) -> anyhow::Result<C::CommandResult> {
-    move |game_state, input| cmd.call(game_state, input)
 }

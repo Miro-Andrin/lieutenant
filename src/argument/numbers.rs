@@ -43,7 +43,7 @@ impl IterParser for U32Parser {
     }
 
     fn regex(&self) -> String {
-        "(+|-)?\\d+".into()
+        "[\\+|-]?\\d+".into()
     }
 }
 

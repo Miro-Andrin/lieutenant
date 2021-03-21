@@ -68,3 +68,15 @@ where
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::literal;
+
+    #[test]
+    fn escape_literal() {
+        let lit = literal("/echo").value;
+        println!("lit:{:?}",lit);
+    }
+}

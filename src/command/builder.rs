@@ -12,7 +12,7 @@ pub fn space() -> OneOrMoreSpace {
 
 pub fn literal(value: &str) -> parser::Literal {
     parser::Literal {
-        value: value.to_string(),
+        value: regex::escape(value),
     }
 }
 

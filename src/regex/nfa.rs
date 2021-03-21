@@ -76,7 +76,7 @@ pub struct NFA<A: std::hash::Hash> {
 
     /// These are the termination states of the NFA. If a stream of bytes ends on one of these states, we consider it a
     /// sucsess.
-    ends: Vec<StateId>,
+    pub(crate) ends: Vec<StateId>,
 }
 
 impl<A: std::hash::Hash> Index<ByteClassId> for NFA<A> {

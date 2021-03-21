@@ -53,6 +53,12 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
     }
 
     pub fn into_early_termination_dfa(self) -> DFA<CmdPos<C>> {
+
+        if self.ends.len() < 2 {
+            let dfa : DFA<CmdPos<C>> = self.into();
+            return dfa
+        }
+
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
         let mut dfa = DFA::new();
 
@@ -233,5 +239,15 @@ mod tests {
                 assert!(false)
             }
         }
+    }
+
+
+    #[test]
+    fn simple() {
+        let regex = "hello world";
+        let nfa = NFA::<CmdPos<usize>>::from_command_regex(regex, 0).unwrap();
+        let dfa = nfa.into_early_termination_dfa();
+        assert!(dfa.early_termination_find("hello world").is_ok());
+        assert!(dfa.early_termination_find("no").is_err())
     }
 }

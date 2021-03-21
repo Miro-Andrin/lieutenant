@@ -36,7 +36,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
     }
 }
 
-impl<A: Eq + std::hash::Hash + Default + Copy + Debug> From<NFA<A>> for DFA<A> {
+impl<A: Eq + std::hash::Hash + Copy + Debug> From<NFA<A>> for DFA<A> {
     fn from(nfa: NFA<A>) -> Self {
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
         let mut dfa = DFA::new();

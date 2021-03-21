@@ -330,7 +330,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
                     bytes = &bytes[1..];
                     current_states = x;
                 }
-                (Err(_), true) => unreachable!(""),
+                (Err(_), true) => unreachable!("unreachable state in nfa find"),
             }
         }
     }

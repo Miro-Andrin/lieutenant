@@ -31,6 +31,8 @@ mod tests {
                 42
             }
         });
+
+        
         let _r = x.call((0, "test"), "/ 100 ").unwrap();
     }
 }

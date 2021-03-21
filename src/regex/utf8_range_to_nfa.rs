@@ -456,7 +456,7 @@ impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange> 
                 below_or_eq_for_given_length(&mut nfa, end);
                 nfa
             }
-            (2, 1) => unreachable!(),
+            (2, 1) => unreachable!("(2,1) case should be impossible"),
             (2, 2) => {
                 match (start[0] == end[0], start[1] == end[1]) {
                     (true, true) => {
@@ -517,8 +517,8 @@ impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange> 
                 below_or_eq_for_given_length(&mut nfa, end);
                 nfa
             }
-            (3, 1) => unreachable!(),
-            (3, 2) => unreachable!(),
+            (3, 1) => unreachable!("(3,1) case should be impossible"),
+            (3, 2) => unreachable!("(3,2) case should be impossible"),
             (3, 3) => match (start[0] == end[0], start[1] == end[1], start[2] == end[2]) {
                 (true, true, true) => {
                     let mut nfa = NFA::empty();
@@ -639,7 +639,7 @@ impl<A: std::hash::Hash + Eq + Copy + std::fmt::Debug> From<&ClassUnicodeRange> 
                 }
             }
 
-            _ => unreachable!(),
+            _ => unreachable!("_ case should be impossible"),
         }
     }
 }

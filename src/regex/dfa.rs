@@ -113,7 +113,12 @@ impl<A: std::hash::Hash + Eq + Clone> DFA<A> {
         state.assosiations.iter().cloned().collect::<Vec<A>>()
     }
 
-    pub fn find<I: AsRef<[u8]>>(&self, input: I) -> Result<StateId, StateId> {
+    pub fn find<I: AsRef<[u8]>>(&self, input: I) -> Result<StateId, Option<StateId>> {  
+
+        if self.states.is_empty() {
+            return Err(None)
+        }
+
         let mut current = StateId::of(0);
         let mut previus = StateId::of(0);
         for b in input.as_ref() {
@@ -121,13 +126,13 @@ impl<A: std::hash::Hash + Eq + Clone> DFA<A> {
                 previus = current;
                 current = next;
             } else {
-                return Err(current);
+                return Err(Some(current));
             }
         }
         if self.ends.contains(&current) {
             Ok(current)
         } else {
-            Err(current)
+            Err(Some(current))
         }
     }
 }
@@ -173,6 +178,15 @@ mod tests {
 
     use super::*;
     use crate::regex::nfa::NFA;
+
+    #[test]
+    fn empty() {
+        let empty = DFA::<usize>::new();
+        let x = empty.find("");
+        assert!(x.is_err());
+        assert!(x.unwrap_err().is_none());
+    }
+
     #[test]
     fn literal() {
         let nfa = NFA::<usize>::literal("hello");

@@ -178,21 +178,31 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> DFA<CmdPos<C>> {
                 Ok(x)
             }
             Err(id) => {
-                let ends: Vec<C> = self
-                    .assosiations(id)
-                    .into_iter()
-                    .filter(|cp| cp.is_end())
-                    .map(|cp| *cp.value())
-                    .collect();
-                if ends.len() > 0 {
-                    Ok(ends)
-                } else {
-                    Err(self
-                        .assosiations(id)
-                        .into_iter()
-                        .map(|cp| *cp.value())
-                        .collect())
+
+                match id {
+                    Some(id) => {
+                         let ends: Vec<C> = self
+                            .assosiations(id)
+                            .into_iter()
+                            .filter(|cp| cp.is_end())
+                            .map(|cp| *cp.value())
+                            .collect();
+                        if ends.len() > 0 {
+                            Ok(ends)
+                        } else {
+                            Err(self
+                                .assosiations(id)
+                                .into_iter()
+                                .map(|cp| *cp.value())
+                                .collect())
+                        }
+                    }
+                    None => {
+                        Err(vec![])
+                    }
                 }
+
+               
             }
         }
     }

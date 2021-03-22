@@ -69,14 +69,28 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::literal;
+    use crate::command::command::{Command, CommandSpec};
+
+    use super::{literal, CommandBuilder};
 
     #[test]
     fn escape_literal() {
         let lit = literal("/echo").value;
-        println!("lit:{:?}",lit);
+        println!("lit:{:?}", lit);
+    }
+
+    #[test]
+    fn case() {
+        let cmd: CommandSpec<(&mut usize, &mut usize), usize, _, _, _> = literal("/echo")
+            .space()
+            .arg::<u32>()
+            .on_call(|arg: u32| move |_x: &mut usize, _y: &mut usize| arg as usize);
+
+        let x = &mut 10;
+        let y = &mut 100;
+        assert!(cmd.call((x, y), "/echo 10").is_ok());
+        println!("{:?}", cmd.call((x, y), "/echo 10 "));
     }
 }

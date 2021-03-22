@@ -214,7 +214,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
 
     /// Makes every end state in self have a epsilon transition to the 'other' nfa.
     /// Note how the end states are modified, so this method does not preserve associated values.
-    pub fn followed_by(&mut self, mut other: NFA<A>) -> anyhow::Result<()> {
+    pub fn followed_by(&mut self, other: NFA<A>) -> anyhow::Result<()> {
         if self.is_empty() {
             *self = other;
             return Ok(());
@@ -229,9 +229,7 @@ impl<A: Copy + Eq + std::hash::Hash + Debug> NFA<A> {
         let state_ofset = self.states.len();
 
         for other_index in 0..other.states.len() {
-            // @TODO might need to change this back.
             let mut state = other.states[other_index].clone();
-            //let mut state = mem::take(other.states.index_mut(other_index));
 
             // When adding the states from 'other' all the StateId's are shifted by 'state_ofset'
             state.table = state

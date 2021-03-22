@@ -113,17 +113,14 @@ impl<A: std::hash::Hash + Eq + Clone> DFA<A> {
         state.assosiations.iter().cloned().collect::<Vec<A>>()
     }
 
-    pub fn find<I: AsRef<[u8]>>(&self, input: I) -> Result<StateId, Option<StateId>> {  
-
+    pub fn find<I: AsRef<[u8]>>(&self, input: I) -> Result<StateId, Option<StateId>> {
         if self.states.is_empty() {
-            return Err(None)
+            return Err(None);
         }
 
         let mut current = StateId::of(0);
-        let mut previus = StateId::of(0);
         for b in input.as_ref() {
             if let Some(next) = self[(current, *b)] {
-                previus = current;
                 current = next;
             } else {
                 return Err(Some(current));

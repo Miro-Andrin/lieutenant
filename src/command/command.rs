@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::bail;
 
-use crate::{generic::{Func, Tuple}, parser::IterParser};
+use crate::{generic::Func, parser::IterParser};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, std::hash::Hash, Debug)]
 pub struct CommandId {
@@ -18,7 +18,6 @@ impl CommandId {
 pub trait Command {
     type GameState;
     type CommandResult;
-
     fn call(&self, gamestate: Self::GameState, input: &str) -> anyhow::Result<Self::CommandResult>;
     fn regex(&self) -> String;
 }

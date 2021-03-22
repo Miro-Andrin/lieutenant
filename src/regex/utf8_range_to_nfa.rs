@@ -14,6 +14,9 @@ const THIRD: RangeInclusive<u8> = 224u8..=239;
 const FOURTH: RangeInclusive<u8> = 240..=247;
 
 /*
+Tabele for utf-8 byte layout. We need to generate a nfa that recognises a range.
+Its sort of like creating a regular expression for a number between n and m.
+You think its easy, untill you realise there are a lot of edgecases.
 
 +-----------+-----------+-----------+-----------+----------------------+-----------------------------------+
 | 1st Byte  | 2nd Byte  | 3rd Byte  | 4th Byte  | Number of Free Bits  | Maximum Expressible Unicode Value |

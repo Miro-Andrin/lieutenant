@@ -53,10 +53,9 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> NFA<CmdPos<C>> {
     }
 
     pub fn into_early_termination_dfa(self) -> DFA<CmdPos<C>> {
-
         if self.ends.len() < 2 {
-            let dfa : DFA<CmdPos<C>> = self.into();
-            return dfa
+            let dfa: DFA<CmdPos<C>> = self.into();
+            return dfa;
         }
 
         let mut nfa_to_dfa: BTreeMap<BTreeSet<StateId>, StateId> = BTreeMap::new();
@@ -183,33 +182,26 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> DFA<CmdPos<C>> {
                     .collect();
                 Ok(x)
             }
-            Err(id) => {
-
-                match id {
-                    Some(id) => {
-                         let ends: Vec<C> = self
+            Err(id) => match id {
+                Some(id) => {
+                    let ends: Vec<C> = self
+                        .assosiations(id)
+                        .into_iter()
+                        .filter(|cp| cp.is_end())
+                        .map(|cp| *cp.value())
+                        .collect();
+                    if ends.len() > 0 {
+                        Ok(ends)
+                    } else {
+                        Err(self
                             .assosiations(id)
                             .into_iter()
-                            .filter(|cp| cp.is_end())
                             .map(|cp| *cp.value())
-                            .collect();
-                        if ends.len() > 0 {
-                            Ok(ends)
-                        } else {
-                            Err(self
-                                .assosiations(id)
-                                .into_iter()
-                                .map(|cp| *cp.value())
-                                .collect())
-                        }
-                    }
-                    None => {
-                        Err(vec![])
+                            .collect())
                     }
                 }
-
-               
-            }
+                None => Err(vec![]),
+            },
         }
     }
 }
@@ -217,7 +209,6 @@ impl<C: Copy + std::hash::Hash + Eq + std::fmt::Debug> DFA<CmdPos<C>> {
 #[cfg(test)]
 mod tests {
 
-    use crate::regex::qc::NFAQtCase;
     use crate::regex::{dfa::DFA, NFA};
 
     use super::CmdPos;
@@ -233,14 +224,12 @@ mod tests {
         println!("{:?}", dfa);
 
         match dfa.early_termination_find("hi") {
-            Ok(x) => {}
-            Err(x) => {
-                println!("{:?}", x);
+            Ok(_) => {}
+            Err(_) => {
                 assert!(false)
             }
         }
     }
-
 
     #[test]
     fn simple() {

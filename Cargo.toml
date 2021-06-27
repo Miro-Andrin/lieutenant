@@ -1,14 +1,7 @@
-[package]
-name = "lieutenant"
-version = "0.3.0"
-authors = ["caelunshun <caelunshun@gmail.com>","miroad <miro.sveits@gmail.com>","Jacob Emil Ulvedal Rosborg <jacob@rosborg.dk>"]
-edition = "2018"
+[workspace]
 
-[dependencies]
-anyhow = "1.0"
-indexmap = "1.6"
-regex-syntax = "0.6.18"
+members = [
+    "host-dispatcher",
+    "parser",
+]
 
-[dev-dependencies]
-quickcheck = "1"
-quickcheck_macros = "1"

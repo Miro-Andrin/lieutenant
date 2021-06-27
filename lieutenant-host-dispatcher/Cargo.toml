@@ -1,0 +1,22 @@
+[package]
+name = "dispatcher"
+version = "0.1.0"
+authors = ["Miro Andrin <miro.sveits@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+regex-syntax = "0.6"
+indexmap = "1.6"
+bit-set = "0.5.2"
+
+[dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"
+
+# Used in src/quickcheck/regex to fuzz for cases were our 
+# nfa does not work like it should. 
+regex = "1.5.4"
+rand = "0.8"
+regex_generate = {git = "https://github.com/CryptArchy/regex_generate.git", branch = "release-0.2.2"}

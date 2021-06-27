@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "host-dispatcher",
-    "parser",
+    "lieutenant-host-dispatcher",
+    "lieutenant-parser",
 ]
 

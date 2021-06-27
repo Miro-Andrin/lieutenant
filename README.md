@@ -27,3 +27,7 @@ Note:
 
 
 
+## Project Structure
+The host-dispatcher is what would be run on the feather server. It can take a list of commands with their regex, and tell you what command could be triggerd by a given chat/terminal message. 
+
+TODO: 

@@ -1,5 +1,5 @@
 [package]
-name = "dispatcher"
+name = "lieutenant_host_dispatcher"
 version = "0.1.0"
 authors = ["Miro Andrin <miro.sveits@gmail.com>"]
 edition = "2018"

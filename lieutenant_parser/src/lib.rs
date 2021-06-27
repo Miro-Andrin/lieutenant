@@ -4,9 +4,10 @@ mod impl_macro;
 mod builder;
 mod argument;
 
-use generics::Tuple;
+pub use generics::Tuple;
 pub use builder::*;
 pub use parsers::*;
+
 
 #[derive(Debug, Clone)]
 pub struct ParseError<'p> {

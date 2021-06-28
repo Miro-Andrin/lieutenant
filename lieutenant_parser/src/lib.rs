@@ -7,6 +7,7 @@ mod argument;
 pub use generics::Tuple;
 pub use builder::*;
 pub use parsers::*;
+pub use argument::Argument;
 
 
 #[derive(Debug, Clone)]

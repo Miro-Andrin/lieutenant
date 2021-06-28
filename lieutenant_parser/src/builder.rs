@@ -70,12 +70,12 @@ where
 /// The generics get a bit crazy here.
 pub trait CommandBuilder<World> {
     type Parser: IterParser<World>;
-    fn arg<A: Argument<World>>(
+    fn arg<A: Argument<World = World>>(
         self,
-    ) -> And<Self::Parser, And<OneOrMoreSpace, <A as Argument<World>>::Parser, World>, World>;
-    fn opt_arg<A: Argument<World>>(
+    ) -> And<Self::Parser, And<OneOrMoreSpace, <A as Argument>::Parser, World>, World>;
+    fn opt_arg<A: Argument<World = World>>(
         self,
-    ) -> And<Self::Parser, Opt<And<OneOrMoreSpace, <A as Argument<World>>::Parser, World>>,World>;
+    ) -> And<Self::Parser, Opt<And<OneOrMoreSpace, <A as Argument>::Parser, World>>,World>;
     fn followed_by<P: IterParser<World>>(self, parser: P) -> And<Self::Parser, P,World>;
     fn on_call<Game, CmdRes, F1, F2>(
         self,
@@ -94,15 +94,15 @@ where
     type Parser = T;
 
     /// Adds an argument with one or more space between it and what came before.
-    fn arg<A: Argument<World>>(
+    fn arg<A: Argument<World=World>>(
         self,
-    ) -> And<Self::Parser, And<OneOrMoreSpace, <A as Argument<World>>::Parser, World>,World> {
+    ) -> And<Self::Parser, And<OneOrMoreSpace, <A as Argument>::Parser, World>,World> {
         And::new(self, And::new(OneOrMoreSpace, A::Parser::default()))
     }
     /// Adds an optional argument with one or more space between it and what came before.
-    fn opt_arg<A: Argument<World>>(
+    fn opt_arg<A: Argument<World = World>>(
         self,
-    ) -> And<Self::Parser, Opt<And<OneOrMoreSpace, <A as Argument<World>>::Parser, World>>,World> {
+    ) -> And<Self::Parser, Opt<And<OneOrMoreSpace, <A as Argument>::Parser, World>>,World> {
         And::new(
             self,
             Opt::new(And::new(OneOrMoreSpace, A::Parser::default())),

@@ -12,9 +12,9 @@ pub use parsers::*;
 #[derive(Debug, Clone)]
 pub struct ParseError<'p> {
     /// What parts of the input were we not able to parse
-    rest: &'p str,
+    pub rest: &'p str,
     /// An explenation of what happend.
-    msg: String,
+    pub msg: String,
 }
 
 impl<'p> ParseError<'p> {
